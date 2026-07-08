@@ -1,0 +1,445 @@
+/**
+ * GameApp
+ * -------
+ * Top-level orchestrator. Owns the renderer, the screen state machine
+ * (start → select → customize → play → results), the game loop, and the
+ * wiring between all the systems:
+ *
+ *   UIManager           DOM screens + touch input
+ *   CustomizationState  the player's build (drives CharacterFactory)
+ *   PhysicsWorld        Rapier world + ground raycasts
+ *   SkateParkScene      level visuals, colliders, rails, collectibles
+ *   PlayerController    arcade movement + character animation
+ *   ScoreSystem         points, combos, run timer
+ *   TrailSystem         customizable particle trail
+ *
+ * Two Three.js scenes share one renderer: a small "showroom" scene for the
+ * select/customize preview, and the park for gameplay.
+ */
+import * as THREE from 'three';
+import { CustomizationState, bodyTypeDef } from './CustomizationState';
+import { buildCharacter, type CharacterRig } from './CharacterFactory';
+import { PhysicsWorld } from './PhysicsWorld';
+import { SkateParkScene } from './SkateParkScene';
+import { PlayerController, type InputState } from './PlayerController';
+import { ScoreSystem } from './ScoreSystem';
+import { TrailSystem } from './TrailSystem';
+import { UIManager } from './UIManager';
+import { DebugView } from './DebugView';
+import { Economy } from './Economy';
+
+type AppMode = 'start' | 'select' | 'customize' | 'play' | 'results';
+
+export class GameApp {
+  private renderer: THREE.WebGLRenderer;
+  private camera: THREE.PerspectiveCamera;
+  private mode: AppMode = 'start';
+  private clock = new THREE.Clock();
+  private elapsed = 0;
+
+  private state = new CustomizationState();
+  private economy = new Economy();
+  private ui!: UIManager;
+  private physics = new PhysicsWorld();
+
+  // preview showroom
+  private previewScene!: THREE.Scene;
+  private previewRig: CharacterRig | null = null;
+  private previewSpin = 0;
+
+  // gameplay
+  private park!: SkateParkScene;
+  private playerRig: CharacterRig | null = null;
+  private controller!: PlayerController;
+  private score!: ScoreSystem;
+  private trails!: TrailSystem;
+  private debug!: DebugView;
+
+  // input
+  private keys = new Set<string>();
+  private input: InputState = { steer: 0, throttle: 0, jump: false, boost: false };
+  private paused = false;
+
+  constructor(private container: HTMLElement) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // mobile perf cap
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.domElement.classList.add('game-canvas');
+    container.appendChild(this.renderer.domElement);
+
+    this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 420);
+    this.onResize();
+    window.addEventListener('resize', () => this.onResize());
+  }
+
+  /** Async boot: Rapier WASM init happens before anything can play. */
+  async start(): Promise<void> {
+    await this.physics.init();
+
+    this.park = new SkateParkScene(this.physics);
+    this.trails = new TrailSystem(this.park.scene);
+    this.debug = new DebugView(this.park.scene, this.physics, this.park.rails);
+    this.buildPreviewScene();
+
+    this.score = new ScoreSystem({
+      onScore: (s) => this.ui.setScore(s),
+      onCombo: (chain, frac) => this.ui.setCombo(chain, frac),
+      onTrick: (label, pts) => this.ui.trickPopup(label, pts),
+      onTimeUp: () => this.endRun(),
+      onStack: (moves) => this.ui.setStack(moves),
+      onStackConvert: (total) => this.ui.stackConvertFx(total),
+      onStackVoid: () => this.ui.stackVoidFx(),
+    });
+
+    this.ui = new UIManager(this.container, this.state, this.economy, {
+      onPlay: () => this.setMode('select'),
+      onBodyPicked: () => {/* preview rebuild handled by state.onChange */},
+      onSelectConfirm: () => {
+        this.ui.syncCustomizeChips();
+        this.setMode('customize');
+      },
+      onSkate: () => this.startRun(),
+      onBackToSelect: () => this.setMode('select'),
+      onReset: () => this.respawnPlayer(),
+      onRetry: () => this.startRun(),
+      onExitToMenu: () => this.setMode('start'),
+      onPause: () => this.pauseGame(),
+      onResume: () => this.resumeGame(),
+    });
+
+    // Any customization change rebuilds the preview model instantly.
+    this.state.onChange(() => {
+      if (this.mode === 'select' || this.mode === 'customize') this.rebuildPreview();
+      this.ui.syncCustomizeChips();
+    });
+
+    this.controller = new PlayerController(
+      this.physics,
+      // placeholder rig; replaced in startRun()
+      buildCharacter(this.state),
+      this.state.stats,
+      this.park.rails,
+      {
+        onJump: () => {/* ollies score nothing — the verb, not the trick */},
+        onLand: () => this.score.landed(),
+        onAirTick: (m) => this.score.liveAir(m),
+        onSpinTick: (deg) => this.score.liveSpin(deg),
+        onGrindStart: (name) => this.score.grindStart(name),
+        onGrindTick: (dt) => this.score.grindTick(dt),
+        onGrindEnd: () => this.score.grindEnd(),
+        onGrabTick: (name, t) => this.score.grabTick(name, t),
+        onGrab: (name) => this.score.grabEnd(name),
+        onBounce: () => this.score.bounce(),
+        onFlip: (name) => this.score.flip(name),
+        onSpecial: (name) => this.score.specialMove(name),
+        onBonk: () => this.score.bonkVoid(),
+      },
+    );
+    this.controller.setSpecialHooks(
+      () => this.score.specialReady,
+      () => this.score.consumeSpecial(),
+    );
+    this.physics.createPlayerBody(this.park.spawnPoint);
+
+    this.bindKeyboard();
+    this.setMode('start');
+    this.renderer.setAnimationLoop(() => this.tick());
+  }
+
+  /* ------------------------------------------------------------ */
+  /* Screen state machine                                          */
+  /* ------------------------------------------------------------ */
+
+  private setMode(mode: AppMode): void {
+    this.mode = mode;
+    this.paused = false; // pause never survives a screen change
+    switch (mode) {
+      case 'start':
+        this.score.stop();
+        this.ui.show('start');
+        break;
+      case 'select':
+      case 'customize':
+        this.score.stop();
+        this.rebuildPreview();
+        this.ui.show(mode);
+        break;
+      case 'play':
+        this.ui.show('hud');
+        break;
+      case 'results':
+        break; // UI shown by showResults
+    }
+  }
+
+  private startRun(): void {
+    // Fresh rig from the current customization.
+    this.playerRig?.dispose();
+    this.playerRig = buildCharacter(this.state);
+    this.park.scene.add(this.playerRig.root);
+    this.controller.attachRig(this.playerRig, this.state.stats);
+    this.controller.respawn(this.park.spawnPoint, this.park.spawnYaw);
+    this.debug.applyWireframe(); // fresh rig materials need the current mode
+
+    this.park.resetCollectibles();
+    this.park.sky.applyRandom(); // fresh time-of-day each run
+    this.trails.setStyle(this.state.trail);
+    this.trails.clear();
+    this.controller.resetBoost();
+    this.score.startRun();
+    this.ui.setCoinCount(0, this.park.totalCollectibles);
+
+    // Snap camera behind the player so the run doesn't start with a swoop.
+    const back = this.controller.forward.multiplyScalar(-4.6);
+    this.camera.position.copy(this.controller.pos).add(back).add(new THREE.Vector3(0, 2.1, 0));
+
+    this.setMode('play');
+  }
+
+  private endRun(): void {
+    this.mode = 'results';
+    // Bank the run: collected coins + a score bonus go into the wallet.
+    const runCoins = this.park.collectedCount;
+    const bonus = Math.floor(this.score.score / 2500);
+    this.economy.addCoins(runCoins + bonus);
+    this.ui.showResults({
+      score: this.score.score,
+      bestCombo: this.score.bestChain,
+      coins: runCoins,
+      totalCoins: this.park.totalCollectibles,
+      tricks: this.score.movesBanked,
+      coinsBanked: runCoins + bonus,
+      balance: this.economy.coins,
+    });
+  }
+
+  private respawnPlayer(): void {
+    this.controller.respawn(this.park.spawnPoint, this.park.spawnYaw);
+    this.ui.trickPopup('Reset', 0);
+  }
+
+  /** Pause freezes gameplay updates (and the run timer) but keeps rendering. */
+  private pauseGame(): void {
+    if (this.mode !== 'play' || this.paused) return;
+    this.paused = true;
+    this.ui.show('pause');
+  }
+
+  private resumeGame(): void {
+    if (this.mode !== 'play') return;
+    this.paused = false;
+    this.ui.show('hud');
+  }
+
+  /* ------------------------------------------------------------ */
+  /* Preview showroom                                              */
+  /* ------------------------------------------------------------ */
+
+  private buildPreviewScene(): void {
+    this.previewScene = new THREE.Scene();
+    this.previewScene.background = new THREE.Color(0x7fc4ff);
+
+    const hemi = new THREE.HemisphereLight(0xd6ecff, 0x9a8a68, 1.0);
+    const key = new THREE.DirectionalLight(0xfff2d8, 1.3);
+    key.position.set(3, 6, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(512, 512);
+    this.previewScene.add(hemi, key);
+
+    // Podium
+    const podium = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.7, 1.9, 0.35, 20),
+      new THREE.MeshLambertMaterial({ color: 0xe8dfc8, flatShading: true }),
+    );
+    podium.position.y = -0.18;
+    podium.receiveShadow = true;
+    this.previewScene.add(podium);
+    const floor = new THREE.Mesh(
+      new THREE.CylinderGeometry(30, 30, 0.2, 24),
+      new THREE.MeshLambertMaterial({ color: 0x6cbf5a }),
+    );
+    floor.position.y = -0.5;
+    floor.receiveShadow = true;
+    this.previewScene.add(floor);
+  }
+
+  private rebuildPreview(): void {
+    this.previewRig?.dispose();
+    this.previewRig = buildCharacter(this.state);
+    this.previewRig.root.rotation.y = this.previewSpin;
+    this.previewScene.add(this.previewRig.root);
+  }
+
+  /* ------------------------------------------------------------ */
+  /* Input                                                         */
+  /* ------------------------------------------------------------ */
+
+  private bindKeyboard(): void {
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      if (e.code === 'Space') e.preventDefault();
+      if (e.code === 'KeyR' && this.mode === 'play' && !this.paused) this.respawnPlayer();
+      if ((e.code === 'Escape' || e.code === 'KeyP') && this.mode === 'play') {
+        this.paused ? this.resumeGame() : this.pauseGame();
+      }
+      if (e.code === 'KeyV' && this.mode === 'play') {
+        const on = this.debug.toggle();
+        this.ui.trickPopup(on ? 'Debug view ON' : 'Debug view OFF', 0);
+      }
+    });
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('blur', () => this.keys.clear());
+  }
+
+  /** Merge keyboard + touch into a single InputState each frame. */
+  private pollInput(): void {
+    const k = this.keys;
+    let steer = 0;
+    if (k.has('KeyA') || k.has('ArrowLeft')) steer -= 1;
+    if (k.has('KeyD') || k.has('ArrowRight')) steer += 1;
+    steer += this.ui.touchSteer;
+    this.input.steer = THREE.MathUtils.clamp(steer, -1, 1);
+
+    // S/↓ brakes; W/↑ joins Shift as the boost/grab button.
+    this.input.throttle = k.has('KeyS') || k.has('ArrowDown') ? -1 : 0;
+    this.input.jump = k.has('Space') || this.ui.touchJump;
+    this.input.boost =
+      k.has('KeyW') || k.has('ArrowUp') ||
+      k.has('ShiftLeft') || k.has('ShiftRight') ||
+      this.ui.touchBoost;
+  }
+
+  /* ------------------------------------------------------------ */
+  /* Main loop                                                     */
+  /* ------------------------------------------------------------ */
+
+  private tick(): void {
+    const dt = Math.min(this.clock.getDelta(), 1 / 30); // clamp tab-switch spikes
+    this.elapsed += dt;
+
+    if (this.mode === 'select' || this.mode === 'customize') {
+      // Showroom: slow turntable spin.
+      this.previewSpin += dt * 0.7;
+      if (this.previewRig) {
+        this.previewRig.root.rotation.y = this.previewSpin;
+        // idle wobble so it looks alive
+        this.previewRig.body.rotation.z = Math.sin(this.elapsed * 2.4) * 0.06 * bodyTypeDef(this.state.bodyType).stats.wobble;
+      }
+      const h = bodyTypeDef(this.state.bodyType).stats.height;
+      // On portrait screens the customize panel covers the lower half, so
+      // aim lower to push the character up into the visible top area.
+      const portraitDrop = this.camera.aspect < 0.9 ? 1.35 : 0;
+      this.camera.position.lerp(new THREE.Vector3(0, 1.0 + h * 0.45, 4.6), Math.min(1, dt * 4));
+      this.camera.lookAt(0, h * 0.55 - portraitDrop, 0);
+      this.renderer.render(this.previewScene, this.camera);
+      return;
+    }
+
+    if (this.mode === 'play' || this.mode === 'results') {
+      if (this.mode === 'play' && !this.paused) {
+        this.pollInput();
+        this.controller.update(dt, this.input, this.elapsed);
+        this.physics.step(dt);
+        this.score.update(dt);
+        this.ui.setTimer(this.score.timeLeft);
+
+        // Pickups: gold coins (currency + score), blue orbs (boost refill).
+        const got = this.park.update(dt, this.controller.pos);
+        for (let i = 0; i < got.coins; i++) this.score.coin();
+        if (got.coins > 0) this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
+        if (got.orbs > 0) {
+          this.controller.addBoost(0.4 * got.orbs);
+          this.ui.trickPopup('Boost ⚡', 0);
+        }
+
+        // Meters.
+        this.ui.setBoost(this.controller.boostLevel);
+        this.ui.setSpecial(this.score.special, this.score.specialReady);
+
+        // Anchor the move stack above the player's head on screen.
+        if (this.playerRig) {
+          const head = this.controller.pos.clone();
+          head.y += this.playerRig.height + 1.6;
+          head.project(this.camera);
+          this.ui.setStackPos(
+            (head.x * 0.5 + 0.5) * window.innerWidth,
+            (-head.y * 0.5 + 0.5) * window.innerHeight,
+            head.z < 1,
+          );
+        }
+
+        // Trails spawn from behind the board.
+        if (this.playerRig) {
+          const anchor = new THREE.Vector3();
+          this.playerRig.trailAnchor.getWorldPosition(anchor);
+          const speedNorm = Math.min(1, this.controller.horizontalSpeed / this.state.stats.maxSpeed);
+          this.trails.emitFrom(anchor, speedNorm, this.controller.mode === 'ground', dt);
+        }
+        this.trails.update(dt);
+        if (this.debug.enabled) this.debug.updatePlayer(this.controller.pos);
+
+        this.updateChaseCamera(dt);
+      }
+      this.renderer.render(this.park.scene, this.camera);
+      return;
+    }
+
+    // Start screen: gentle park flyby behind the UI gradient? Keep it cheap —
+    // just render the showroom sky so the canvas isn't stale.
+    this.renderer.render(this.previewScene ?? new THREE.Scene(), this.camera);
+  }
+
+  /**
+   * PS2-style chase cam: low, slightly wide, smoothed — with occlusion
+   * handling (the standard third-person technique, as used by the
+   * `camera-controls` library): raycast from the player's head toward the
+   * desired camera spot with a generous buffer, and shorten the boom when
+   * something is in the way. The buffer means the camera starts easing in
+   * BEFORE it would clip; asymmetric smoothing (pull in fast, relax out
+   * slowly) prevents jittery false corrections. Thin rails are ignored.
+   */
+  private camDist = 4.6;
+
+  private updateChaseCamera(dt: number): void {
+    const c = this.controller;
+    const boostFov = this.input.boost && c.horizontalSpeed > 6 ? 78 : 70;
+    this.camera.fov = THREE.MathUtils.damp(this.camera.fov, boostFov, 4, dt);
+    this.camera.updateProjectionMatrix();
+
+    const DIST = 4.6;
+    const BUFFER = 1.0; // start adjusting this far before contact
+
+    const head = c.pos.clone();
+    head.y += 1.2;
+    const idealOffset = c.forward.multiplyScalar(-DIST);
+    idealOffset.y = 0.8 + (2.0 - 1.2); // boom rises behind the player
+    const boomLen = idealOffset.length();
+    const boomDir = idealOffset.clone().divideScalar(boomLen);
+
+    // Occlusion probe (walls/ramps only — skip bonk-only rails/posts).
+    const hit = this.physics.wallRay(head, boomDir, boomLen + BUFFER, false);
+    const allowed = hit ? Math.max(1.4, hit.dist - BUFFER) : boomLen;
+    // Pull in fast when blocked, relax back slowly when clear.
+    this.camDist = THREE.MathUtils.damp(this.camDist, Math.min(allowed, boomLen), allowed < this.camDist ? 14 : 2.5, dt);
+
+    const desired = head.clone().addScaledVector(boomDir, this.camDist);
+    const t = 1 - Math.exp(-dt * 5);
+    this.camera.position.lerp(desired, t);
+    // Never let the camera dip under the floor.
+    this.camera.position.y = Math.max(this.camera.position.y, 0.6);
+
+    const look = c.pos.clone().add(c.forward.multiplyScalar(2.2));
+    look.y += 1.0;
+    this.camera.lookAt(look);
+  }
+
+  private onResize(): void {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.renderer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+}
