@@ -223,8 +223,21 @@ export class UIManager {
     el('h2', 'screen-title inline', top, 'MAKE IT YOURS');
     this.balanceEls.push(el('div', 'coin-balance pill', top, ''));
 
-    // Middle of the screen left clear for the 3D preview.
+    // Middle of the screen left clear for the 3D preview. The panel is a
+    // compact bottom sheet: tab bar → one horizontally-scrolling chip row
+    // at a time → SKATE pinned at the bottom. No vertical scrolling.
     const panel = el('div', 'customize-panel', s);
+    const tabBar = el('div', 'tab-bar', panel);
+    const content = el('div', 'tab-content', panel);
+    const tabs: { name: string; btn: HTMLElement; section: HTMLElement }[] = [];
+    const selectTab = (name: string) => {
+      for (const t of tabs) {
+        const active = t.name === name;
+        t.btn.classList.toggle('active', active);
+        t.section.classList.toggle('hidden', !active);
+        if (active) t.btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      }
+    };
 
     /**
      * A row of chips that doubles as the SHOP: priced items show a lock +
@@ -237,8 +250,10 @@ export class UIManager {
       isActive: (id: T) => boolean,
       pick: (id: T) => void,
     ) => {
-      const section = el('div', 'chip-section', panel);
-      el('div', 'chip-title', section, title);
+      const section = el('div', 'chip-section hidden', content);
+      const tab = el('button', 'tab', tabBar, title);
+      tab.addEventListener('click', () => selectTab(title));
+      tabs.push({ name: title, btn: tab, section });
       const row = el('div', 'chip-row', section);
       const chips: { id: T; node: HTMLElement; opt: (typeof options)[number] }[] = [];
 
@@ -290,42 +305,44 @@ export class UIManager {
     };
 
     chipRow(
-      'Body Type',
+      'Body',
       BODY_TYPES.map((b) => ({ id: b.id, label: b.label, itemKey: `body:${b.id}`, price: 0 })),
       (id) => this.state.bodyType === id,
       (id) => this.state.set('bodyType', id),
     );
     chipRow(
-      'Body Color',
+      'Color',
       BODY_COLORS.map((c) => ({ id: c.hex, label: c.label, hex: c.hex, itemKey: `color:${c.id}`, price: 0 })),
       (hex) => this.state.bodyColor === hex,
       (hex) => this.state.set('bodyColor', hex),
     );
     chipRow(
-      'Hat / Accessory',
+      'Hat',
       ACCESSORIES.map((a) => ({ id: a.id, label: a.label, itemKey: `acc:${a.id}`, price: a.price })),
       (id) => this.state.accessory === id,
       (id) => this.state.set('accessory', id),
     );
     chipRow(
-      'Board Style',
+      'Board',
       BOARDS.map((b) => ({ id: b.id, label: b.label, itemKey: `board:${b.id}`, price: b.price })),
       (id) => this.state.board === id,
       (id) => this.state.set('board', id),
     );
     chipRow(
-      'Wheel Color',
+      'Wheels',
       WHEEL_COLORS.map((c) => ({ id: c.hex, label: c.label, hex: c.hex, itemKey: `wheel:${c.id}`, price: c.price })),
       (hex) => this.state.wheelColor === hex,
       (hex) => this.state.set('wheelColor', hex),
     );
     chipRow(
-      'Trail Effect',
+      'Trail',
       TRAILS.map((t) => ({ id: t.id, label: t.label, itemKey: `trail:${t.id}`, price: t.price })),
       (id) => this.state.trail === id,
       (id) => this.state.set('trail', id),
     );
+    selectTab('Body');
 
+    // Pinned to the bottom of the sheet, always visible.
     const skate = el('button', 'btn btn-big btn-primary skate-btn', panel, 'SKATE! 🛹');
     skate.addEventListener('click', () => this.cb.onSkate());
   }

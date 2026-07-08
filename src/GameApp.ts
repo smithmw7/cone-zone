@@ -365,9 +365,9 @@ export class GameApp {
         this.previewRig.body.rotation.z = Math.sin(this.elapsed * 2.4) * 0.06 * bodyTypeDef(this.state.bodyType).stats.wobble;
       }
       const h = bodyTypeDef(this.state.bodyType).stats.height;
-      // On portrait screens the customize panel covers the lower half, so
-      // aim lower to push the character up into the visible top area.
-      const portraitDrop = this.camera.aspect < 0.9 ? 1.35 : 0;
+      // On portrait screens the customize sheet covers the bottom, so aim
+      // slightly lower to keep the character in the clear upper area.
+      const portraitDrop = this.camera.aspect < 0.9 ? 0.7 : 0;
       this.camera.position.lerp(new THREE.Vector3(0, 1.0 + h * 0.45, 4.6), Math.min(1, dt * 4));
       this.camera.lookAt(0, h * 0.55 - portraitDrop, 0);
       this.renderer.render(this.previewScene, this.camera);
