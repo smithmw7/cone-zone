@@ -54,6 +54,11 @@ export const SKY_PRESETS: SkyPreset[] = [
     sunColor: 0xfff8e0, sunIntensity: 1.25,
     hemiSky: 0xd8f2ea, hemiGround: 0x8a9a68, hemiIntensity: 0.9, lampIntensity: 0,
   },
+  {
+    name: 'Alpine', top: 0x2f6fc4, mid: 0x9cccf0, horizon: 0xeef6fc,
+    sunColor: 0xffffff, sunIntensity: 1.45,
+    hemiSky: 0xe8f4ff, hemiGround: 0xb8c4d0, hemiIntensity: 1.0, lampIntensity: 0,
+  },
 ];
 
 interface Lamp {
@@ -138,8 +143,12 @@ export class SkySystem {
     for (const lamp of this.lamps) this.applyLamp(lamp);
   }
 
-  applyRandom(): SkyPreset {
-    const pick = SKY_PRESETS[Math.floor(Math.random() * SKY_PRESETS.length)];
+  /** Random preset, optionally restricted to a level's allowed names. */
+  applyRandom(filterNames?: string[]): SkyPreset {
+    const pool = filterNames?.length
+      ? SKY_PRESETS.filter((p) => filterNames.includes(p.name))
+      : SKY_PRESETS;
+    const pick = (pool.length ? pool : SKY_PRESETS)[Math.floor(Math.random() * (pool.length || SKY_PRESETS.length))];
     this.apply(pick);
     return pick;
   }

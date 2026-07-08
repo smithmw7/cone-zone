@@ -20,8 +20,9 @@ import * as THREE from 'three';
 import { CustomizationState, bodyTypeDef } from './CustomizationState';
 import { buildCharacter, type CharacterRig } from './CharacterFactory';
 import { PhysicsWorld } from './PhysicsWorld';
-import { SkateParkScene } from './SkateParkScene';
-import { PlayerController, type InputState } from './PlayerController';
+import { SkateParkScene, type LevelConfig } from './SkateParkScene';
+import { levelById } from './Levels';
+import { PlayerController, type ControllerEvents, type InputState } from './PlayerController';
 import { ScoreSystem } from './ScoreSystem';
 import { TrailSystem } from './TrailSystem';
 import { UIManager } from './UIManager';
@@ -29,7 +30,7 @@ import { DebugView } from './DebugView';
 import { Economy } from './Economy';
 import { AudioSystem } from './AudioSystem';
 
-type AppMode = 'start' | 'select' | 'customize' | 'play' | 'results';
+type AppMode = 'start' | 'select' | 'customize' | 'levels' | 'play' | 'results';
 
 export class GameApp {
   private renderer: THREE.WebGLRenderer;
@@ -42,14 +43,15 @@ export class GameApp {
   private economy = new Economy();
   private audio = new AudioSystem();
   private ui!: UIManager;
-  private physics = new PhysicsWorld();
+  private physics!: PhysicsWorld;
+  private currentLevelId: string | null = null;
 
   // preview showroom
   private previewScene!: THREE.Scene;
   private previewRig: CharacterRig | null = null;
   private previewSpin = 0;
 
-  // gameplay
+  // gameplay (rebuilt per level by loadLevel)
   private park!: SkateParkScene;
   private playerRig: CharacterRig | null = null;
   private controller!: PlayerController;
@@ -75,13 +77,7 @@ export class GameApp {
     window.addEventListener('resize', () => this.onResize());
   }
 
-  /** Async boot: Rapier WASM init happens before anything can play. */
   async start(): Promise<void> {
-    await this.physics.init();
-
-    this.park = new SkateParkScene(this.physics);
-    this.trails = new TrailSystem(this.park.scene);
-    this.debug = new DebugView(this.park.scene, this.physics, this.park.rails);
     this.buildPreviewScene();
 
     this.score = new ScoreSystem({
@@ -104,7 +100,10 @@ export class GameApp {
         this.ui.syncCustomizeChips();
         this.setMode('customize');
       },
-      onSkate: () => this.startRun(),
+      onSkate: () => this.setMode('levels'),
+      onLevelPicked: (id) => {
+        void this.loadLevel(levelById(id)).then(() => this.startRun());
+      },
       onBackToSelect: () => this.setMode('select'),
       onReset: () => this.respawnPlayer(),
       onRetry: () => this.startRun(),
@@ -121,13 +120,49 @@ export class GameApp {
       this.ui.syncCustomizeChips();
     });
 
+    this.bindKeyboard();
+    this.setMode('start');
+    this.renderer.setAnimationLoop(() => this.tick());
+  }
+
+  /**
+   * Tear down the current level (if any) and build the picked one:
+   * fresh physics world, scene, trails, debug overlay and controller.
+   * Procedural generation is fast enough that there's no loading screen.
+   */
+  private async loadLevel(config: LevelConfig): Promise<void> {
+    if (this.currentLevelId === config.id) return;
+    this.playerRig?.dispose();
+    this.playerRig = null;
+    this.park?.dispose();
+    this.physics?.dispose();
+
+    this.physics = new PhysicsWorld();
+    await this.physics.init();
+    this.park = new SkateParkScene(this.physics, config);
+    this.trails = new TrailSystem(this.park.scene);
+    this.debug = new DebugView(this.park.scene, this.physics, this.park.rails);
+
     this.controller = new PlayerController(
       this.physics,
-      // placeholder rig; replaced in startRun()
-      buildCharacter(this.state),
+      buildCharacter(this.state), // placeholder rig; replaced in startRun()
       this.state.stats,
       this.park.rails,
-      {
+      this.controllerEvents(),
+    );
+    this.controller.setSpecialHooks(
+      () => this.score.specialReady,
+      () => this.score.consumeSpecial(),
+    );
+    this.controller.bounds = config.bounds;
+    this.controller.levelSpeedMul = config.physics?.speedMul ?? 1;
+    this.controller.levelTurnMul = config.physics?.turnMul ?? 1;
+    this.physics.createPlayerBody(this.park.spawnPoint);
+    this.currentLevelId = config.id;
+  }
+
+  private controllerEvents(): ControllerEvents {
+    return {
         onJump: () => this.audio.ollie(), // ollies make sound, not points
         onLand: () => {
           this.score.landed();
@@ -165,17 +200,7 @@ export class GameApp {
           this.score.bonkVoid();
           this.audio.bonk();
         },
-      },
-    );
-    this.controller.setSpecialHooks(
-      () => this.score.specialReady,
-      () => this.score.consumeSpecial(),
-    );
-    this.physics.createPlayerBody(this.park.spawnPoint);
-
-    this.bindKeyboard();
-    this.setMode('start');
-    this.renderer.setAnimationLoop(() => this.tick());
+    };
   }
 
   /* ------------------------------------------------------------ */
@@ -198,6 +223,10 @@ export class GameApp {
         this.rebuildPreview();
         this.ui.show(mode);
         break;
+      case 'levels':
+        this.score.stop();
+        this.ui.show('levels');
+        break;
       case 'play':
         this.ui.show('hud');
         break;
@@ -216,7 +245,7 @@ export class GameApp {
     this.debug.applyWireframe(); // fresh rig materials need the current mode
 
     this.park.resetCollectibles();
-    this.park.sky.applyRandom(); // fresh time-of-day each run
+    this.park.sky.applyRandom(this.park.config.theme.skyPresets); // per-level skies
     this.trails.setStyle(this.state.trail);
     this.trails.clear();
     this.controller.resetBoost();
@@ -321,7 +350,7 @@ export class GameApp {
       if ((e.code === 'Escape' || e.code === 'KeyP') && this.mode === 'play') {
         this.paused ? this.resumeGame() : this.pauseGame();
       }
-      if (e.code === 'KeyV' && this.mode === 'play') {
+      if (e.code === 'KeyV' && this.mode === 'play' && this.debug) {
         const on = this.debug.toggle();
         this.ui.trickPopup(on ? 'Debug view ON' : 'Debug view OFF', 0);
       }
@@ -356,7 +385,7 @@ export class GameApp {
     const dt = Math.min(this.clock.getDelta(), 1 / 30); // clamp tab-switch spikes
     this.elapsed += dt;
 
-    if (this.mode === 'select' || this.mode === 'customize') {
+    if (this.mode === 'select' || this.mode === 'customize' || this.mode === 'levels') {
       // Showroom: slow turntable spin.
       this.previewSpin += dt * 0.7;
       if (this.previewRig) {

@@ -211,4 +211,9 @@ export class PhysicsWorld {
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
   }
+
+  /** Release WASM-side memory when a level is torn down. */
+  dispose(): void {
+    this.world?.free();
+  }
 }

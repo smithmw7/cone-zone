@@ -27,14 +27,16 @@ import {
 } from './CustomizationState';
 import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
+import { LEVELS } from './Levels';
 
-export type ScreenName = 'start' | 'select' | 'customize' | 'hud' | 'results' | 'pause';
+export type ScreenName = 'start' | 'select' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
 export interface UICallbacks {
   onPlay(): void;                 // start → select
   onBodyPicked(type: BodyType): void; // select card tapped (updates preview)
   onSelectConfirm(): void;        // select → customize
-  onSkate(): void;                // customize → game
+  onSkate(): void;                // customize → level select
+  onLevelPicked(id: string): void; // level select → game
   onBackToSelect(): void;
   onReset(): void;                // respawn player
   onRetry(): void;                // results/pause → new run
@@ -114,6 +116,7 @@ export class UIManager {
     this.buildStart();
     this.buildSelect();
     this.buildCustomize();
+    this.buildLevels();
     this.buildHUD();
     this.buildPause();
     this.buildResults();
@@ -357,6 +360,31 @@ export class UIManager {
 
   refreshBalances(): void {
     for (const b of this.balanceEls) b.textContent = `🪙 ${this.economy.coins.toLocaleString()}`;
+  }
+
+  /* ---------------------------------------------------------- */
+  /* Level select                                                */
+  /* ---------------------------------------------------------- */
+
+  private buildLevels(): void {
+    const s = el('div', 'screen screen-levels hidden', this.root);
+    this.screens.set('levels', s);
+
+    const top = el('div', 'customize-top', s);
+    const back = el('button', 'btn btn-small', top, '← Back');
+    back.addEventListener('click', () => this.show('customize'));
+    el('h2', 'screen-title inline', top, 'PICK A SPOT');
+
+    const panel = el('div', 'select-panel', s);
+    const grid = el('div', 'select-grid', panel);
+    for (const lvl of LEVELS) {
+      const card = el('button', 'select-card level-card', grid);
+      el('div', 'level-icon', card, lvl.icon);
+      el('div', 'card-name', card, lvl.name);
+      el('div', 'card-blurb', card, lvl.blurb);
+      el('div', 'level-size', card, `${lvl.bounds.x * 2}×${lvl.bounds.z * 2}m${lvl.physics?.speedMul ? ' · fast & drifty' : ''}`);
+      card.addEventListener('click', () => this.cb.onLevelPicked(lvl.id));
+    }
   }
 
   /* ---------------------------------------------------------- */

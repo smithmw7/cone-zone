@@ -21,7 +21,7 @@ import * as THREE from 'three';
 import { PhysicsWorld } from './PhysicsWorld';
 import { CharacterRig } from './CharacterFactory';
 import { BodyStats } from './CustomizationState';
-import { RailSegment, PARK_BOUNDS } from './SkateParkScene';
+import { RailSegment } from './SkateParkScene';
 
 export interface InputState {
   steer: number;     // -1 (left) .. 1 (right)
@@ -71,6 +71,10 @@ export class PlayerController {
   vel = new THREE.Vector3();
   yaw = 0;
   mode: Mode = 'air';
+  /** per-level clamp half-extents + feel multipliers (set on level load) */
+  bounds = { x: 67.5, z: 47.5 };
+  levelSpeedMul = 1;
+  levelTurnMul = 1;
 
   private speed = 0;               // signed scalar along facing
   private steerSmooth = 0;
@@ -223,10 +227,10 @@ export class PlayerController {
     if (this.mode === 'ground') {
       // Turning scales with speed a little so standing turns aren't twitchy.
       const speedFactor = 0.45 + 0.55 * Math.min(1, Math.abs(this.speed) / 6);
-      this.yaw -= this.steerSmooth * this.stats.turnRate * speedFactor * dt;
+      this.yaw -= this.steerSmooth * this.stats.turnRate * this.levelTurnMul * speedFactor * dt;
 
       // Auto-forward: cruise toward target speed; S brakes.
-      const target = this.stats.maxSpeed * boost;
+      const target = this.stats.maxSpeed * boost * this.levelSpeedMul;
       if (input.throttle < -0.1) {
         this.speed = THREE.MathUtils.damp(this.speed, 0, 4, dt);
       } else {
@@ -240,7 +244,7 @@ export class PlayerController {
       // fades on steep transitions (normal.y → 0) so quarter pipes and
       // bowls convert speed into launch instead of eating it.
       this.speed -= slopeF.y * 11 * Math.max(0.32, this.groundNormal.y) * dt;
-      this.speed = THREE.MathUtils.clamp(this.speed, -2, this.stats.maxSpeed * 2.2);
+      this.speed = THREE.MathUtils.clamp(this.speed, -2, this.stats.maxSpeed * 2.2 * this.levelSpeedMul);
       this.vel.copy(slopeF).multiplyScalar(this.speed);
 
       this.coyoteTimer = 0.12;
@@ -369,7 +373,12 @@ export class PlayerController {
     const ground = this.physics.groundRay(this.pos, this.mode === 'ground' ? stick : 0.5);
 
     if (this.mode === 'ground') {
-      if (ground && ground.normal.y > 0.28 && Math.abs(this.pos.y - ground.y) <= stick) {
+      const gap = ground ? this.pos.y - ground.y : Infinity; // + = ground below us
+      // Sticking DOWN is only allowed when we aren't flying upward — if the
+      // surface falls away while we're climbing fast (kicker crest, ramp
+      // lip), that's a LAUNCH, not something to glue ourselves over.
+      const launching = gap > 0.05 && this.vel.y > 1.5;
+      if (ground && ground.normal.y > 0.28 && Math.abs(gap) <= stick && !launching) {
         this.pos.y = ground.y;
         this.vel.y = 0; // recomputed from the slope next frame
         this.groundNormal.copy(ground.normal);
@@ -543,14 +552,14 @@ export class PlayerController {
 
   private clampToBounds(): void {
     const softBounce = 0.4;
-    if (Math.abs(this.pos.x) > PARK_BOUNDS.x) {
-      this.pos.x = Math.sign(this.pos.x) * PARK_BOUNDS.x;
+    if (Math.abs(this.pos.x) > this.bounds.x) {
+      this.pos.x = Math.sign(this.pos.x) * this.bounds.x;
       this.vel.x *= -softBounce;
       this.yaw = Math.atan2(this.vel.x, this.vel.z || 0.001);
       this.speed *= 0.5;
     }
-    if (Math.abs(this.pos.z) > PARK_BOUNDS.z) {
-      this.pos.z = Math.sign(this.pos.z) * PARK_BOUNDS.z;
+    if (Math.abs(this.pos.z) > this.bounds.z) {
+      this.pos.z = Math.sign(this.pos.z) * this.bounds.z;
       this.vel.z *= -softBounce;
       this.yaw = Math.atan2(this.vel.x || 0.001, this.vel.z);
       this.speed *= 0.5;

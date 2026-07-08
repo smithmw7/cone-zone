@@ -286,6 +286,34 @@ canvas.game-canvas {
   background: var(--orange);
 }
 
+/* ---------- level select ---------- */
+
+.screen-levels {
+  justify-content: flex-start;
+}
+
+.level-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.level-icon {
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+.level-size {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--orange-dark);
+  background: rgba(255, 122, 26, 0.12);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
 /* ---------- customization ---------- */
 
 .screen-customize {
