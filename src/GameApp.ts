@@ -27,6 +27,7 @@ import { TrailSystem } from './TrailSystem';
 import { UIManager } from './UIManager';
 import { DebugView } from './DebugView';
 import { Economy } from './Economy';
+import { AudioSystem } from './AudioSystem';
 
 type AppMode = 'start' | 'select' | 'customize' | 'play' | 'results';
 
@@ -39,6 +40,7 @@ export class GameApp {
 
   private state = new CustomizationState();
   private economy = new Economy();
+  private audio = new AudioSystem();
   private ui!: UIManager;
   private physics = new PhysicsWorld();
 
@@ -88,7 +90,10 @@ export class GameApp {
       onTrick: (label, pts) => this.ui.trickPopup(label, pts),
       onTimeUp: () => this.endRun(),
       onStack: (moves) => this.ui.setStack(moves),
-      onStackConvert: (total) => this.ui.stackConvertFx(total),
+      onStackConvert: (total) => {
+        this.ui.stackConvertFx(total);
+        this.audio.convert(total);
+      },
       onStackVoid: () => this.ui.stackVoidFx(),
     });
 
@@ -106,7 +111,9 @@ export class GameApp {
       onExitToMenu: () => this.setMode('start'),
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
-    });
+      onToggleSound: () => this.audio.toggleMuted(),
+      onUiClick: () => this.audio.click(),
+    }, this.audio.muted);
 
     // Any customization change rebuilds the preview model instantly.
     this.state.onChange(() => {
@@ -121,19 +128,43 @@ export class GameApp {
       this.state.stats,
       this.park.rails,
       {
-        onJump: () => {/* ollies score nothing — the verb, not the trick */},
-        onLand: () => this.score.landed(),
+        onJump: () => this.audio.ollie(), // ollies make sound, not points
+        onLand: () => {
+          this.score.landed();
+          this.audio.land();
+        },
         onAirTick: (m) => this.score.liveAir(m),
         onSpinTick: (deg) => this.score.liveSpin(deg),
-        onGrindStart: (name) => this.score.grindStart(name),
+        onGrindStart: (name) => {
+          this.score.grindStart(name);
+          this.audio.grindStart();
+        },
         onGrindTick: (dt) => this.score.grindTick(dt),
-        onGrindEnd: () => this.score.grindEnd(),
+        onGrindEnd: () => {
+          this.score.grindEnd();
+          this.audio.grindStop();
+        },
         onGrabTick: (name, t) => this.score.grabTick(name, t),
-        onGrab: (name) => this.score.grabEnd(name),
-        onBounce: () => this.score.bounce(),
-        onFlip: (name) => this.score.flip(name),
-        onSpecial: (name) => this.score.specialMove(name),
-        onBonk: () => this.score.bonkVoid(),
+        onGrab: (name) => {
+          this.score.grabEnd(name);
+          this.audio.grab();
+        },
+        onBounce: () => {
+          this.score.bounce();
+          this.audio.boing();
+        },
+        onFlip: (name) => {
+          this.score.flip(name);
+          this.audio.flip();
+        },
+        onSpecial: (name) => {
+          this.score.specialMove(name);
+          this.audio.special();
+        },
+        onBonk: () => {
+          this.score.bonkVoid();
+          this.audio.bonk();
+        },
       },
     );
     this.controller.setSpecialHooks(
@@ -154,9 +185,11 @@ export class GameApp {
   private setMode(mode: AppMode): void {
     this.mode = mode;
     this.paused = false; // pause never survives a screen change
+    if (mode !== 'play') this.audio.stopLoops();
     switch (mode) {
       case 'start':
         this.score.stop();
+        this.audio.stopMusic();
         this.ui.show('start');
         break;
       case 'select':
@@ -187,6 +220,7 @@ export class GameApp {
     this.trails.setStyle(this.state.trail);
     this.trails.clear();
     this.controller.resetBoost();
+    this.audio.startMusic();
     this.score.startRun();
     this.ui.setCoinCount(0, this.park.totalCollectibles);
 
@@ -223,12 +257,15 @@ export class GameApp {
   private pauseGame(): void {
     if (this.mode !== 'play' || this.paused) return;
     this.paused = true;
+    this.audio.pauseMusic();
+    this.audio.stopLoops();
     this.ui.show('pause');
   }
 
   private resumeGame(): void {
     if (this.mode !== 'play') return;
     this.paused = false;
+    this.audio.resumeMusic();
     this.ui.show('hud');
   }
 
@@ -348,10 +385,14 @@ export class GameApp {
         // Pickups: gold coins (currency + score), blue orbs (boost refill).
         const got = this.park.update(dt, this.controller.pos);
         for (let i = 0; i < got.coins; i++) this.score.coin();
-        if (got.coins > 0) this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
+        if (got.coins > 0) {
+          this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
+          this.audio.coin();
+        }
         if (got.orbs > 0) {
           this.controller.addBoost(0.4 * got.orbs);
           this.ui.trickPopup('Boost ⚡', 0);
+          this.audio.orb();
         }
 
         // Meters.

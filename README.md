@@ -76,6 +76,16 @@ feeds the score. **Bonking a wall voids the pending stack.**
 - Every trick inside the 4-second combo window raises the multiplier (x10 max);
   bonking a wall breaks the combo and hurts the special meter.
 
+## Audio
+
+- **Music**: original tracks by the author (`public/audio/`), streamed via an
+  `<audio>` element — a random one loops each run, pauses with the game.
+- **SFX**: synthesized live with the Web Audio API (oscillators + filtered
+  noise) — ollie pop, landing thud, grind scrape loop, coin ding, boost orb,
+  bonk, ducky boing, special fanfare, chain-banked cha-ching, UI clicks.
+  No audio assets to download, nothing to license.
+- 🔊 button in the HUD mutes everything (persisted).
+
 ## Visual variety
 
 Each run rolls a random **gradient sky preset** (Noon / Sunset / Dawn / Dusk /

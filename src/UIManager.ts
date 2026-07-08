@@ -41,6 +41,10 @@ export interface UICallbacks {
   onExitToMenu(): void;           // results/hud/pause → start
   onPause(): void;
   onResume(): void;
+  /** toggles audio; returns the new muted state */
+  onToggleSound(): boolean;
+  /** small click for button presses */
+  onUiClick(): void;
 }
 
 export interface ResultsData {
@@ -91,6 +95,7 @@ export class UIManager {
     private state: CustomizationState,
     private economy: Economy,
     private cb: UICallbacks,
+    private startMuted = false,
   ) {
     this.root = el('div', 'ui-root', container);
     // Belt-and-braces touch detection alongside the CSS pointer:coarse query:
@@ -112,6 +117,11 @@ export class UIManager {
     this.buildHUD();
     this.buildPause();
     this.buildResults();
+
+    // Every button clicks audibly (delegated so new buttons count too).
+    this.root.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest?.('button')) this.cb.onUiClick();
+    });
   }
 
   show(name: ScreenName): void {
@@ -361,6 +371,10 @@ export class UIManager {
     this.boostBar = el('div', 'boost-fill', boostTrack);
 
     const topRight = el('div', 'hud-topright', s);
+    const sound = el('button', 'btn btn-small hud-btn', topRight, this.startMuted ? '🔇' : '🔊');
+    sound.addEventListener('click', () => {
+      sound.textContent = this.cb.onToggleSound() ? '🔇' : '🔊';
+    });
     const pause = el('button', 'btn btn-small hud-btn', topRight, '⏸ Pause');
     pause.addEventListener('click', () => this.cb.onPause());
     const reset = el('button', 'btn btn-small hud-btn', topRight, '↺ Reset');
