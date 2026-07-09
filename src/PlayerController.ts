@@ -38,6 +38,8 @@ export interface ControllerEvents {
   onAirTick(distance: number): void;
   /** live degrees of trick spin while airborne */
   onSpinTick(degrees: number): void;
+  /** live count of completed backflips while airborne (hold down) */
+  onBackflipTick(count: number): void;
   onGrindStart(name: string): void;
   onGrindTick(dt: number): void;
   onGrindEnd(duration: number): void;
@@ -59,6 +61,7 @@ const BOOST_REGEN_TIME = 16;    // seconds to refill while cruising
 const BOOST_REST_REGEN_TIME = 5; // much faster refill while resting
 const SPECIAL_ANIM_TIME = 0.9;
 const AIR_SPIN_RATE = 4.6;   // rad/s of trick spin while airborne
+const BACKFLIP_RATE = 8.5;   // rad/s of backward pitch while holding down in the air
 const FLIP_DURATION = 0.45;  // seconds for a kickflip board roll
 const VERT_PULL_IN = 1.4;    // gentle into-pipe drift that keeps the vert lock
 const VERT_LAUNCH_OUT = 9;   // outward pop when ↑ / ⤴ releases the ramp lock
@@ -97,6 +100,7 @@ export class PlayerController {
   private airTime = 0;
   private airDistance = 0; // meters of flight path this air
   private spinAccum = 0;
+  private backflipAccum = 0; // radians of backward pitch this air (hold down)
   private flipTime = -1;   // -1 = not flipping; else seconds into the flip
   private flipCount = 0;   // flips landed this air (for Double Kickflip)
   private flipTrick = 'Kickflip';
@@ -316,6 +320,14 @@ export class PlayerController {
       this.spinAccum += spinDelta;
       this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
 
+      // Backflip: holding down in the air pitches the whole rig backward.
+      // Each full 360° is a scored backflip; keep holding on a big air for
+      // doubles/triples. An incomplete rotation on landing scores nothing.
+      if (input.throttle < -0.1) {
+        this.backflipAccum += BACKFLIP_RATE * dt;
+        this.events.onBackflipTick(Math.floor(this.backflipAccum / (Math.PI * 2)));
+      }
+
       // Jump button in the air (standard skate-game trick grammar):
       //   coyote window       → late ollie
       //   + held direction    → flip trick variant (heelflip/shove-it/…)
@@ -515,6 +527,7 @@ export class PlayerController {
       this.airStart = elapsed;
       this.airDistance = 0;
       this.spinAccum = 0;
+      this.backflipAccum = 0;
       this.vertAir = false; // launch code re-arms it for steep transitions
     }
   }
@@ -550,6 +563,7 @@ export class PlayerController {
     this.flipCount = 0;
     this.specialAnimT = SPECIAL_ANIM_TIME;
     this.specialSpin = 0;
+    this.backflipAccum = 0; // snap the rig upright on touchdown
     this.finishGrab();
 
     // Ducky bounce: fast landings give a bonus hop instead of sticking.
@@ -670,6 +684,7 @@ export class PlayerController {
         this.grindSpeed = Math.max(Math.abs(along), this.horizontalSpeed * 0.9, 5.5);
         this.grindTime = 0;
         this.spinAccum = 0;
+        this.backflipAccum = 0;
         this.flipTime = -1;
         this.flipCount = 0;
         this.finishGrab();
@@ -745,6 +760,12 @@ export class PlayerController {
     const targetTilt = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), localNormal);
     this.tiltQuat.slerp(targetTilt, Math.min(1, dt * 8));
     rig.tilt.quaternion.copy(this.tiltQuat);
+    // Backflip: pitch the whole rig backward around its local X axis.
+    if (this.backflipAccum > 0.0001) {
+      rig.tilt.quaternion.multiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -this.backflipAccum),
+      );
+    }
 
     // Wobble: pivot at the base so the light top flops around.
     const speedNorm = Math.min(1, this.horizontalSpeed / this.stats.maxSpeed);

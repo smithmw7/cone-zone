@@ -195,10 +195,17 @@ export class ScoreSystem {
     this.startOrUpdate('spin', `SPIN ${snapped}°`, (snapped / 90) * 80 - 20);
   }
 
+  liveBackflip(count: number): void {
+    if (count < 1) return;
+    const label = count === 1 ? 'BACKFLIP' : count === 2 ? 'DOUBLE BACKFLIP' : `${count}× BACKFLIP`;
+    this.startOrUpdate('backflip', label, count * 150);
+  }
+
   /** Landing (or catching a rail) closes the aerial moves. */
   landed(): void {
     this.endMove('air');
     this.endMove('spin');
+    this.endMove('backflip');
     this.endMove('grab:');
   }
 

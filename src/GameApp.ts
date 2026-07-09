@@ -170,6 +170,7 @@ export class GameApp {
         },
         onAirTick: (m) => this.score.liveAir(m),
         onSpinTick: (deg) => this.score.liveSpin(deg),
+        onBackflipTick: (n) => this.score.liveBackflip(n),
         onGrindStart: (name) => {
           this.score.grindStart(name);
           this.audio.grindStart();
@@ -369,8 +370,8 @@ export class GameApp {
     steer += this.ui.touchSteer;
     this.input.steer = THREE.MathUtils.clamp(steer, -1, 1);
 
-    // S/↓ brakes; W/Shift is the boost/grab button; ↑ ejects off a vert.
-    this.input.throttle = k.has('KeyS') || k.has('ArrowDown') ? -1 : 0;
+    // S/↓/▼ brakes (and backflips in the air); W/Shift boost/grab; ↑ ejects.
+    this.input.throttle = k.has('KeyS') || k.has('ArrowDown') || this.ui.touchDown ? -1 : 0;
     this.input.jump = k.has('Space') || this.ui.touchJump;
     this.input.boost =
       k.has('KeyW') ||

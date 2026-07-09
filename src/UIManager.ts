@@ -84,6 +84,7 @@ export class UIManager {
   touchJump = false;
   touchBoost = false;
   touchLaunch = false;
+  touchDown = false;
 
   private screens = new Map<ScreenName, HTMLElement>();
   private scoreEl!: HTMLElement;
@@ -412,12 +413,14 @@ export class UIManager {
     const touch = el('div', 'touch-controls', s);
 
     // LEFT: a light d-pad — launch (▲, up-and-out off a ramp) on top, steer
-    // (◀ ▶) below. Small + translucent so they stay out of the way.
+    // (◀ ▶) in the middle, down (▼, brake / hold in air = backflip) at the
+    // bottom. Small + translucent so they stay out of the way.
     const left = el('div', 'touch-cluster touch-left', touch);
     const btnLaunch = el('button', 'touch-btn touch-dir touch-launch', left, '▲');
     const dirRow = el('div', 'touch-dirrow', left);
     const btnL = el('button', 'touch-btn touch-dir', dirRow, '◀');
     const btnR = el('button', 'touch-btn touch-dir', dirRow, '▶');
+    const btnDown = el('button', 'touch-btn touch-dir', left, '▼');
 
     // RIGHT: the two primary actions, each an icon with a subtle label.
     const right = el('div', 'touch-cluster touch-right', touch);
@@ -451,6 +454,7 @@ export class UIManager {
     bindHold(btnJump, () => (this.touchJump = true), () => (this.touchJump = false));
     bindHold(btnBoost, () => (this.touchBoost = true), () => (this.touchBoost = false));
     bindHold(btnLaunch, () => (this.touchLaunch = true), () => (this.touchLaunch = false));
+    bindHold(btnDown, () => (this.touchDown = true), () => (this.touchDown = false));
   }
 
   /* ---------------------------------------------------------- */
@@ -669,6 +673,7 @@ export class UIManager {
     hint('Pop Shove-It', '▶ + tap jump');
     hint('Impossible', 'S/↓ + tap jump');
     hint('Spin 180–720', 'steer while airborne');
+    hint('Backflip (×2, ×3…)', 'hold S / ↓ / ▼ in the air');
     section('GRABS — hold boost in the air');
     hint('Melon Grab', 'hold boost');
     hint('Indy Grab', '▶ + hold boost');
