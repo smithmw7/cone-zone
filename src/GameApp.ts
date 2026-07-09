@@ -251,8 +251,9 @@ export class GameApp {
     this.ui.setCoinCount(0, this.park.totalCollectibles);
 
     // Snap camera behind the player so the run doesn't start with a swoop.
-    const back = this.controller.forward.multiplyScalar(-4.6);
-    this.camera.position.copy(this.controller.pos).add(back).add(new THREE.Vector3(0, 2.1, 0));
+    const fwd = this.controller.forward;
+    this.camYaw = Math.atan2(fwd.x, fwd.z); // seed the smoothed follow yaw
+    this.camera.position.copy(this.controller.pos).addScaledVector(fwd, -5.5).add(new THREE.Vector3(0, 2.1, 0));
 
     this.setMode('play');
   }
@@ -468,7 +469,8 @@ export class GameApp {
    * BEFORE it would clip; asymmetric smoothing (pull in fast, relax out
    * slowly) prevents jittery false corrections. Thin rails are ignored.
    */
-  private camDist = 4.6;
+  private camDist = 5.5;
+  private camYaw = 0; // smoothed follow yaw (eases 180° whips instead of snapping)
 
   private updateChaseCamera(dt: number): void {
     const c = this.controller;
@@ -476,13 +478,24 @@ export class GameApp {
     this.camera.fov = THREE.MathUtils.damp(this.camera.fov, boostFov, 4, dt);
     this.camera.updateProjectionMatrix();
 
-    const DIST = 4.6;
-    const BUFFER = 1.0; // start adjusting this far before contact
+    const DIST = 5.5;         // a little further back than before
+    const BUFFER = 1.0;       // start adjusting this far before contact
+    const CAM_TURN_RATE = 4;  // how fast the boom swings to a new heading
+
+    // Ease the follow heading toward the player's facing along the SHORTEST
+    // arc, so flipping 180° (fakie, quick turnarounds) sweeps round smoothly
+    // instead of jump-cutting to the other side.
+    const targetYaw = Math.atan2(c.forward.x, c.forward.z);
+    let dy = targetYaw - this.camYaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    this.camYaw += dy * (1 - Math.exp(-dt * CAM_TURN_RATE));
+    const fwd = new THREE.Vector3(Math.sin(this.camYaw), 0, Math.cos(this.camYaw));
 
     const head = c.pos.clone();
     head.y += 1.2;
-    const idealOffset = c.forward.multiplyScalar(-DIST);
-    idealOffset.y = 0.8 + (2.0 - 1.2); // boom rises behind the player
+    const idealOffset = fwd.clone().multiplyScalar(-DIST);
+    idealOffset.y = 0.8 + (2.15 - 1.2); // boom rises a touch higher behind the player
     const boomLen = idealOffset.length();
     const boomDir = idealOffset.clone().divideScalar(boomLen);
 
@@ -498,7 +511,7 @@ export class GameApp {
     // Never let the camera dip under the floor.
     this.camera.position.y = Math.max(this.camera.position.y, 0.6);
 
-    const look = c.pos.clone().add(c.forward.multiplyScalar(2.2));
+    const look = c.pos.clone().add(fwd.clone().multiplyScalar(2.2));
     look.y += 1.0;
     this.camera.lookAt(look);
   }
