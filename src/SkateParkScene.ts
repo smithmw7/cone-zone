@@ -478,14 +478,18 @@ vec3 triplanarColor() {
     const rLip = rFlat + R * sinMax;
     const rOut = rLip + 2.2;
     const rBase = rOut + h * SLOPE_RUN;
-    const pts: THREE.Vector2[] = [new THREE.Vector2(0.01, 0), new THREE.Vector2(rFlat, 0)];
+    // Lift the crater floor a hair above the ground plane so it doesn't
+    // z-fight (or trap the ground-ray) where bowl meets ground, and sink
+    // the outer skirt below ground so there's no seam gap around the rim.
+    const floor = 0.05;
+    const pts: THREE.Vector2[] = [new THREE.Vector2(0.01, floor), new THREE.Vector2(rFlat, floor)];
     const steps = 10;
     for (let i = 1; i <= steps; i++) {
       const a = (i / steps) * QP_MAX_ANGLE;
-      pts.push(new THREE.Vector2(rFlat + R * Math.sin(a), R * (1 - Math.cos(a))));
+      pts.push(new THREE.Vector2(rFlat + R * Math.sin(a), floor + R * (1 - Math.cos(a))));
     }
-    pts.push(new THREE.Vector2(rOut, h));
-    pts.push(new THREE.Vector2(rBase, 0));
+    pts.push(new THREE.Vector2(rOut, floor + h));
+    pts.push(new THREE.Vector2(rBase, -0.25));
     const geo = new THREE.LatheGeometry(pts, 28);
     const bowlMat = new THREE.MeshLambertMaterial({ color: this.theme.rampAlt, flatShading: true, side: THREE.DoubleSide });
     this.applyTriplanar(bowlMat, this.woodTexture(), 0.5);
