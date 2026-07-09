@@ -133,12 +133,14 @@ function buildMegaCanyon(p: SkateParkScene): void {
   p.moduleRail(90, 6.5, -24, 90, 6.5, 4);
   p.moduleRoller(80, -10, 0, 8, 6);
 
-  // Floor street.
+  // Floor street. Spawn runs straight north up x=0 — keep that corridor
+  // clean (rollers only), so the first grind rail runs PARALLEL to the lane
+  // off to the right (grind it lengthwise) instead of crossing the spawn.
   p.moduleStairs(60, 50, Math.PI, 2, 10);
   p.moduleLedge(16, 52, 0, 14, 0.5);
   p.moduleLedge(-80, -36, Math.PI / 2, 14, 1);
   p.moduleManualPad(-32, 52, 0, 10);
-  p.moduleRail(-12, 0.5, 44, 10, 0.5, 44);
+  p.moduleRail(10, 0.5, 50, 10, 0.5, 38);
   p.moduleRail(14, 1.0, -44, 34, 1.0, -44);
   p.moduleRoller(0, 22, 0, 10);
   p.moduleRoller(0, 28, 0, 10);
@@ -156,7 +158,7 @@ function buildMegaCanyon(p: SkateParkScene): void {
     // halfpipe + banks
     [-58, 4.6, 42], [-88, 5, 24],
     // rails/ledges/stairs
-    [0, 1.4, 44], [24, 1.9, -44], [90, 7, -10], [16, 1.4, 52], [-80, 2.4, -36], [60, 2.6, 48],
+    [10, 1.4, 44], [24, 1.9, -44], [90, 7, -10], [16, 1.4, 52], [-80, 2.4, -36], [60, 2.6, 48],
     // cruise
     [0, 0.9, 12], [-40, 0.9, 20], [70, 6.9, -10], [84, 0.9, 40], [-70, 0.9, -40],
   ]);
