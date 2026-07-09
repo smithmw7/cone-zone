@@ -458,11 +458,20 @@ export class PlayerController {
           this.groundNormal.copy(ground.normal);
           this.mode = 'ground';
           this.vertAir = false;
-          // Landing back on a steep transition: auto-face down the ramp
-          // (the fakie save) so you roll back into the pipe, not the wall.
-          if (ground.normal.y < 0.55) {
-            this.yaw = Math.atan2(ground.normal.x, ground.normal.z);
-            this.speed = Math.max(this.speed, 4);
+          // Landing on a ramp transition while still headed UP it (into the
+          // wall) would just re-launch you. Flip to roll back DOWN into the
+          // pipe instead (the fakie save) so a half-pipe pendulums you the
+          // other way. Only kicks in when you're actually facing uphill — a
+          // clean downhill landing keeps its own line.
+          if (ground.normal.y < 0.85) {
+            const downhill = new THREE.Vector3(ground.normal.x, 0, ground.normal.z);
+            if (downhill.lengthSq() > 1e-4) {
+              downhill.normalize();
+              if (this.forward.dot(downhill) < 0.35) {
+                this.yaw = Math.atan2(downhill.x, downhill.z);
+                this.speed = Math.max(this.speed, 4);
+              }
+            }
           }
         }
       }
