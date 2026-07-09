@@ -66,6 +66,8 @@ interface Lamp {
   bulbMat: THREE.MeshLambertMaterial;
 }
 
+const SKY_RADIUS = 400;
+
 export class SkySystem {
   preset: SkyPreset = SKY_PRESETS[0];
 
@@ -75,23 +77,28 @@ export class SkySystem {
     bottomColor: { value: new THREE.Color() },
   };
   private lamps: Lamp[] = [];
+  private dome!: THREE.Mesh;
+  private sunCore!: THREE.MeshBasicMaterial;
+  private sunGlow!: THREE.MeshBasicMaterial;
 
   constructor(
     private scene: THREE.Scene,
     private sun: THREE.DirectionalLight,
     private hemi: THREE.HemisphereLight,
   ) {
+    // Local-space gradient (view direction), so the dome can ride the camera
+    // and still read as an infinitely distant sky — no parallax as you skate.
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(380, 24, 12),
+      new THREE.SphereGeometry(SKY_RADIUS, 24, 12),
       new THREE.ShaderMaterial({
         uniforms: this.uniforms,
         side: THREE.BackSide,
         depthWrite: false,
         fog: false,
         vertexShader: /* glsl */ `
-          varying vec3 vWorldPosition;
+          varying vec3 vDir;
           void main() {
-            vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+            vDir = position;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
           }
         `,
@@ -99,9 +106,9 @@ export class SkySystem {
           uniform vec3 topColor;
           uniform vec3 midColor;
           uniform vec3 bottomColor;
-          varying vec3 vWorldPosition;
+          varying vec3 vDir;
           void main() {
-            float h = normalize(vWorldPosition).y;
+            float h = normalize(vDir).y;
             vec3 c = h >= 0.0
               ? mix(midColor, topColor, pow(h, 0.75))
               : mix(midColor, bottomColor, pow(-h, 0.5));
@@ -110,12 +117,41 @@ export class SkySystem {
         `,
       }),
     );
+    dome.renderOrder = -2;
     // Debug view should neither wireframe nor show the dome.
     dome.userData.noWireframe = true;
     dome.userData.hideInDebug = true;
     scene.add(dome);
+    this.dome = dome;
+
+    // Distant sun / moon: a small round unlit sphere fixed on the sky dome,
+    // set in the direction the sunlight comes from. Because it rides the dome
+    // (which follows the camera, see update()), it holds one spot in the sky.
+    const dir = sun.position.clone().normalize();
+    if (dir.lengthSq() < 1e-6) dir.set(0.5, 0.8, 0.3).normalize();
+    this.sunCore = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, depthTest: false, depthWrite: false });
+    const disc = new THREE.Mesh(new THREE.SphereGeometry(11, 20, 14), this.sunCore);
+    disc.position.copy(dir).multiplyScalar(SKY_RADIUS * 0.88);
+    disc.renderOrder = -1;
+    this.sunGlow = new THREE.MeshBasicMaterial({
+      color: 0xffffff, fog: false, depthTest: false, depthWrite: false,
+      transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending,
+    });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(20, 20, 14), this.sunGlow);
+    glow.position.copy(disc.position);
+    glow.renderOrder = -1;
+    for (const o of [disc, glow]) {
+      o.userData.noWireframe = true;
+      o.userData.hideInDebug = true;
+      dome.add(o); // children of the dome → ride the camera with it
+    }
 
     this.apply(SKY_PRESETS[0]);
+  }
+
+  /** Lock the sky to the camera each frame so it never parallaxes. */
+  update(cameraPos: THREE.Vector3): void {
+    this.dome.position.copy(cameraPos);
   }
 
   /** Lamp posts register their light + bulb material for preset dimming. */
@@ -139,6 +175,13 @@ export class SkySystem {
     this.hemi.color.setHex(preset.hemiSky);
     this.hemi.groundColor.setHex(preset.hemiGround);
     this.hemi.intensity = preset.hemiIntensity;
+
+    // Sun/moon disc: a bright tinted core + soft additive halo. Darker,
+    // bluer presets read as a moon; warm bright ones as the sun.
+    const tint = new THREE.Color(preset.sunColor);
+    this.sunCore.color.copy(tint).lerp(new THREE.Color(0xffffff), 0.55);
+    this.sunGlow.color.copy(tint);
+    this.sunGlow.opacity = 0.22 + preset.sunIntensity * 0.12;
 
     for (const lamp of this.lamps) this.applyLamp(lamp);
   }

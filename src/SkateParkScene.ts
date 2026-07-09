@@ -132,7 +132,9 @@ function texFromCanvas(draw: (ctx: CanvasRenderingContext2D, s: number) => void)
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  // Max anisotropy keeps the ground/ramps sharp at grazing angles (the long
+  // concrete floor receding to the horizon was smearing at low anisotropy).
+  tex.anisotropy = 16;
   return tex;
 }
 
@@ -640,8 +642,16 @@ vec3 triplanarColor() {
     sun.shadow.camera.top = ext + 20;
     sun.shadow.camera.bottom = -ext - 20;
     sun.shadow.camera.far = ext * 3;
-    sun.shadow.bias = -0.0005;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.04; // kills the shadow acne on curved ramps
+    sun.shadow.radius = 3.5;      // soft PCF contact shadows
     this.scene.add(sun);
+
+    // Cool fill from the opposite side: lifts the shadow side and gives the
+    // chunky shapes some form instead of reading flat. Preset-independent.
+    const fill = new THREE.DirectionalLight(0xbcd4ff, 0.35);
+    fill.position.set(-ext * 0.6, ext * 0.55, -ext * 0.7);
+    this.scene.add(fill);
 
     this.sky = new SkySystem(this.scene, sun, hemi);
 

@@ -475,6 +475,7 @@ export class GameApp {
 
         this.updateChaseCamera(dt);
       }
+      this.park.sky.update(this.camera.position); // keep the sky infinitely distant
       this.renderer.render(this.park.scene, this.camera);
       return;
     }
