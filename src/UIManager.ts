@@ -28,6 +28,7 @@ import {
 import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
 import { LEVELS } from './Levels';
+import { MUSIC_TRACKS } from './AudioSystem';
 
 export type ScreenName = 'start' | 'select' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
@@ -47,6 +48,10 @@ export interface UICallbacks {
   onToggleSound(): boolean;
   /** small click for button presses */
   onUiClick(): void;
+  /** the currently-selected music track id */
+  getCurrentTrack(): string;
+  /** user picked a track in the music player */
+  onTrackPicked(id: string): void;
 }
 
 export interface ResultsData {
@@ -414,6 +419,8 @@ export class UIManager {
     this.boostBar = el('div', 'boost-fill', boostTrack);
 
     const topRight = el('div', 'hud-topright', s);
+    const music = el('button', 'btn btn-small hud-btn', topRight, '🎵');
+    music.addEventListener('click', () => this.openMusicPlayer());
     const sound = el('button', 'btn btn-small hud-btn', topRight, this.startMuted ? '🔇' : '🔊');
     sound.addEventListener('click', () => {
       sound.textContent = this.cb.onToggleSound() ? '🔇' : '🔊';
@@ -422,6 +429,8 @@ export class UIManager {
     pause.addEventListener('click', () => this.cb.onPause());
     const reset = el('button', 'btn btn-small hud-btn', topRight, '↺ Reset');
     reset.addEventListener('click', () => this.cb.onReset());
+
+    this.buildMusicPlayer();
 
     this.popupLayer = el('div', 'popup-layer', s);
 
@@ -461,6 +470,62 @@ export class UIManager {
     });
     bindHold(btnJump, () => (this.touchJump = true), () => (this.touchJump = false));
     bindHold(btnBoost, () => (this.touchBoost = true), () => (this.touchBoost = false));
+  }
+
+  /* ---------------------------------------------------------- */
+  /* Music player                                                */
+  /* ---------------------------------------------------------- */
+
+  private musicOverlay!: HTMLElement;
+  private musicCards = new Map<string, HTMLElement>();
+
+  private buildMusicPlayer(): void {
+    // Full-screen dim backdrop; click outside the sheet closes it.
+    const overlay = el('div', 'music-overlay hidden', this.root);
+    this.musicOverlay = overlay;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeMusicPlayer();
+    });
+
+    const sheet = el('div', 'music-sheet', overlay);
+    const head = el('div', 'music-head', sheet);
+    el('h2', 'music-title', head, '🎵 JUKEBOX');
+    const close = el('button', 'btn btn-small music-close', head, '✕');
+    close.addEventListener('click', () => this.closeMusicPlayer());
+
+    const grid = el('div', 'music-grid', sheet);
+    MUSIC_TRACKS.forEach((track, i) => {
+      const card = el('button', 'album-card', grid);
+      // Placeholder square "album art": a deterministic two-tone gradient
+      // derived from the track's position, with a music glyph on top.
+      const hue = (i * 47) % 360;
+      const art = el('div', 'album-art', card);
+      art.style.background = `linear-gradient(135deg, hsl(${hue} 75% 58%), hsl(${(hue + 40) % 360} 75% 42%))`;
+      el('span', 'album-glyph', art, '♪');
+      const eq = el('div', 'album-eq', card); // "now playing" bars (CSS-animated)
+      el('i', '', eq);
+      el('i', '', eq);
+      el('i', '', eq);
+      el('div', 'album-name', card, track.title);
+      card.addEventListener('click', () => {
+        this.cb.onTrackPicked(track.id);
+        this.highlightTrack(track.id);
+      });
+      this.musicCards.set(track.id, card);
+    });
+  }
+
+  private highlightTrack(id: string): void {
+    for (const [key, card] of this.musicCards) card.classList.toggle('playing', key === id);
+  }
+
+  private openMusicPlayer(): void {
+    this.highlightTrack(this.cb.getCurrentTrack());
+    this.musicOverlay.classList.remove('hidden');
+  }
+
+  private closeMusicPlayer(): void {
+    this.musicOverlay.classList.add('hidden');
   }
 
   setScore(score: number): void {

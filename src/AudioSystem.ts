@@ -12,8 +12,54 @@
  * gesture (browser autoplay policy), so construction is safe at boot.
  */
 
-const MUSIC_TRACKS = ['audio/sun.mp3', 'audio/driving.mp3', 'audio/weekdays.mp3'];
+export interface MusicTrack {
+  id: string;    // stable key (filename stem), used for persistence
+  title: string; // display name
+  file: string;  // path under public/
+}
+
+/** Turn "King_of_the_Blacktop_2.mp3" → "King Of The Blacktop 2". */
+function titleize(file: string): string {
+  return file
+    .replace(/\.mp3$/i, '')
+    .split('_')
+    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+const TRACK_FILES = [
+  'And-One_Groove.mp3',
+  'Blacktop_Battle_Anthem.mp3',
+  'Blacktop_Crossover.mp3',
+  'Blacktop_Heat.mp3',
+  'Blacktop_Heat_118.mp3',
+  'Blacktop_Heat_Anthem.mp3',
+  'Blacktop_Heatwave.mp3',
+  'Crossover_Classic.mp3',
+  'Crossover_Madness.mp3',
+  'East_14th_Court_Heat.mp3',
+  'East_Coast_Court_Showdown.mp3',
+  'King_of_the_Blacktop.mp3',
+  'King_of_the_Blacktop_2.mp3',
+  'King_of_the_Blacktop_3.mp3',
+  'Metal_Carnage_Arena.mp3',
+  'Metal_Mayhem_Arena.mp3',
+  'Neon_Asphalt_Miami_Midnight_Run.mp3',
+  'Neon_Overdrive.mp3',
+  'Pacific_Boardwalk_Breeze.mp3',
+  'Pacific_Boardwalk_Groove.mp3',
+  'Street_Court_Showdown.mp3',
+  'Sunset_Combo.mp3',
+];
+
+export const MUSIC_TRACKS: MusicTrack[] = TRACK_FILES.map((f) => ({
+  id: f.replace(/\.mp3$/i, ''),
+  title: titleize(f),
+  file: `audio/${f}`,
+}));
+
 const MUTE_KEY = 'coneZoneMuted';
+const TRACK_KEY = 'coneZoneTrack';
 
 export class AudioSystem {
   private ctx: AudioContext | null = null;
@@ -22,10 +68,18 @@ export class AudioSystem {
   private grindLoop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
   private music = new Audio();
   private musicStarted = false;
+  private currentTrackId: string;
+  private trackListeners = new Set<(id: string) => void>();
   muted: boolean;
 
   constructor() {
     this.muted = localStorage.getItem(MUTE_KEY) === '1';
+    // Restore the last-picked track, or fall back to a random one.
+    const saved = localStorage.getItem(TRACK_KEY);
+    const savedValid = saved && MUSIC_TRACKS.some((t) => t.id === saved);
+    this.currentTrackId = savedValid
+      ? (saved as string)
+      : MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)].id;
     this.music.loop = true;
     this.music.volume = 0.35;
     this.music.muted = this.muted;
@@ -67,11 +121,39 @@ export class AudioSystem {
 
   /* ---------------- music ---------------- */
 
+  /** The currently-selected track. */
+  get trackId(): string {
+    return this.currentTrackId;
+  }
+
+  /** Subscribe to track changes (returns an unsubscribe fn). */
+  onTrackChange(fn: (id: string) => void): () => void {
+    this.trackListeners.add(fn);
+    return () => this.trackListeners.delete(fn);
+  }
+
+  private track(id: string): MusicTrack {
+    return MUSIC_TRACKS.find((t) => t.id === id) ?? MUSIC_TRACKS[0];
+  }
+
+  private loadCurrent(): void {
+    const file = this.track(this.currentTrackId).file;
+    if (this.music.src.indexOf(file) === -1) this.music.src = file;
+  }
+
+  /** Pick a specific track and start it immediately (from the player UI). */
+  selectTrack(id: string): void {
+    if (!MUSIC_TRACKS.some((t) => t.id === id)) return;
+    this.currentTrackId = id;
+    localStorage.setItem(TRACK_KEY, id);
+    this.music.src = this.track(id).file;
+    this.musicStarted = true;
+    void this.music.play().catch(() => {});
+    for (const fn of this.trackListeners) fn(id);
+  }
+
   startMusic(): void {
-    const track = MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
-    if (!this.musicStarted || this.music.src.indexOf(track) === -1) {
-      this.music.src = track;
-    }
+    this.loadCurrent();
     this.musicStarted = true;
     void this.music.play().catch(() => {/* blocked until a gesture; fine */});
   }

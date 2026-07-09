@@ -112,6 +112,8 @@ export class GameApp {
       onResume: () => this.resumeGame(),
       onToggleSound: () => this.audio.toggleMuted(),
       onUiClick: () => this.audio.click(),
+      getCurrentTrack: () => this.audio.trackId,
+      onTrackPicked: (id) => this.audio.selectTrack(id),
     }, this.audio.muted);
 
     // Any customization change rebuilds the preview model instantly.
