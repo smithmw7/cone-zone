@@ -17,8 +17,11 @@ document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS pin
 document.addEventListener(
   'touchmove',
   (e) => {
-    // allow scrolling inside the customization + pause panels only
-    if (!(e.target as HTMLElement).closest?.('.customize-panel, .pause-card')) e.preventDefault();
+    // Allow native touch scrolling inside the scrollable panels/rows:
+    // the customization sheet, pause card, level carousel and jukebox grid.
+    // Everything else stays locked so the game doesn't pan/zoom.
+    const scrollable = '.customize-panel, .pause-card, .select-grid, .music-grid';
+    if (!(e.target as HTMLElement).closest?.(scrollable)) e.preventDefault();
   },
   { passive: false },
 );
