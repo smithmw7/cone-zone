@@ -80,6 +80,7 @@ export class UIManager {
   touchSteer = 0;
   touchJump = false;
   touchBoost = false;
+  touchLaunch = false;
 
   private screens = new Map<ScreenName, HTMLElement>();
   private scoreEl!: HTMLElement;
@@ -153,7 +154,7 @@ export class UIManager {
     const play = el('button', 'btn btn-big btn-primary', card, 'PLAY');
     play.addEventListener('click', () => this.cb.onPlay());
 
-    el('p', 'footer-note', s, 'Space = ollie · W/↑ = boost · air: tap jump = flips, hold boost = grabs');
+    el('p', 'footer-note', s, 'Space = ollie · W = boost · ↑ = launch off ramps · air: tap jump = flips, hold boost = grabs');
   }
 
   /* ---------------------------------------------------------- */
@@ -387,7 +388,11 @@ export class UIManager {
     const btnR = el('button', 'touch-btn', left, '▶');
     const right = el('div', 'touch-cluster touch-right', touch);
     const btnBoost = el('button', 'touch-btn touch-boost', right, '🔥');
-    const btnJump = el('button', 'touch-btn touch-jump', right, '⬆');
+    // Jump + launch stack on the right: launch (eject off a curved ramp)
+    // sits just above the big jump button so both fall under the thumb.
+    const jumpStack = el('div', 'touch-jumpstack', right);
+    const btnLaunch = el('button', 'touch-btn touch-launch', jumpStack, '⤴');
+    const btnJump = el('button', 'touch-btn touch-jump', jumpStack, '⬆');
 
     const bindHold = (btn: HTMLElement, down: () => void, up: () => void) => {
       const start = (e: Event) => {
@@ -411,6 +416,7 @@ export class UIManager {
     });
     bindHold(btnJump, () => (this.touchJump = true), () => (this.touchJump = false));
     bindHold(btnBoost, () => (this.touchBoost = true), () => (this.touchBoost = false));
+    bindHold(btnLaunch, () => (this.touchLaunch = true), () => (this.touchLaunch = false));
   }
 
   /* ---------------------------------------------------------- */
@@ -583,7 +589,8 @@ export class UIManager {
     section('RIDING');
     hint('Steer', 'A/D · ←/→ · ◀ ▶');
     hint('Ollie', 'Space · ⬆');
-    hint('Boost (blue meter)', 'hold W/↑ · Shift · 🔥');
+    hint('Boost (blue meter)', 'hold W · Shift · 🔥');
+    hint('Launch off ramps', '↑ · ⤴');
     hint('Brake', 'S / ↓');
     section('AIR TRICKS — tap jump again in the air');
     hint('Kickflip', 'tap jump');
@@ -604,8 +611,11 @@ export class UIManager {
     hint('Rocket Air', 'hold boost + tap jump');
     hint('The 900', '◀/▶ + hold boost + tap jump');
     hint('Christ Air', 'S/↓ + hold boost + tap jump');
+    section('VERT — curved ramps & bowls lock you in');
+    hint('Pump & trick', 'jump / boost stay in the pipe');
+    hint('Launch out', 'tap ↑ / ⤴ to fly out over the lip');
+    hint('Or ride off', 'drift along the lip to exit sideways');
     section('OTHER');
-    hint('Vert air', 'pulls you back into the pipe — hold boost to fly out');
     hint('Refill boost', 'rest, or grab blue orbs');
     hint('Reset / Pause / Debug', 'R · Esc/P · V');
 

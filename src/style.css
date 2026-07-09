@@ -997,6 +997,15 @@ body.has-touch .touch-controls {
 
 .touch-right {
   right: 16px;
+  align-items: flex-end;
+}
+
+/* Launch stacks directly above the jump button (thumb reaches both). */
+.touch-jumpstack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 
 .touch-btn {
@@ -1023,6 +1032,17 @@ body.has-touch .touch-controls {
   background: var(--orange);
   color: #fff;
   box-shadow: 0 5px 0 var(--orange-dark);
+}
+
+/* Launch (vert eject) — sky blue to read as "up and out". */
+.touch-launch {
+  background: var(--sky);
+  color: #fff;
+  box-shadow: 0 5px 0 #3f9fd6;
+}
+
+.touch-launch:active {
+  box-shadow: 0 2px 0 #3f9fd6;
 }
 
 /* ---------- pause ---------- */

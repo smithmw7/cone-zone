@@ -61,7 +61,7 @@ export class GameApp {
 
   // input
   private keys = new Set<string>();
-  private input: InputState = { steer: 0, throttle: 0, jump: false, boost: false };
+  private input: InputState = { steer: 0, throttle: 0, jump: false, boost: false, launch: false };
   private paused = false;
 
   constructor(private container: HTMLElement) {
@@ -365,13 +365,14 @@ export class GameApp {
     steer += this.ui.touchSteer;
     this.input.steer = THREE.MathUtils.clamp(steer, -1, 1);
 
-    // S/↓ brakes; W/↑ joins Shift as the boost/grab button.
+    // S/↓ brakes; W/Shift is the boost/grab button; ↑ ejects off a vert.
     this.input.throttle = k.has('KeyS') || k.has('ArrowDown') ? -1 : 0;
     this.input.jump = k.has('Space') || this.ui.touchJump;
     this.input.boost =
-      k.has('KeyW') || k.has('ArrowUp') ||
+      k.has('KeyW') ||
       k.has('ShiftLeft') || k.has('ShiftRight') ||
       this.ui.touchBoost;
+    this.input.launch = k.has('ArrowUp') || this.ui.touchLaunch;
   }
 
   /* ------------------------------------------------------------ */

@@ -27,7 +27,8 @@ export interface InputState {
   steer: number;     // -1 (left) .. 1 (right)
   throttle: number;  // -1 = brake (S / down)
   jump: boolean;
-  boost: boolean;    // W / ↑ / Shift / 🔥 — meter boost on ground, grab in air
+  boost: boolean;    // W / Shift / 🔥 — meter boost on ground, grab in air
+  launch: boolean;   // ↑ / ⤴ — eject up-and-out off a curved ramp (vert lock)
 }
 
 export interface ControllerEvents {
@@ -59,6 +60,9 @@ const BOOST_REST_REGEN_TIME = 5; // much faster refill while resting
 const SPECIAL_ANIM_TIME = 0.9;
 const AIR_SPIN_RATE = 4.6;   // rad/s of trick spin while airborne
 const FLIP_DURATION = 0.45;  // seconds for a kickflip board roll
+const VERT_PULL_IN = 1.4;    // gentle into-pipe drift that keeps the vert lock
+const VERT_LAUNCH_OUT = 9;   // outward pop when ↑ / ⤴ releases the ramp lock
+const VERT_LAUNCH_UP = 6.5;  // extra lift on that pop so you clear the lip
 const MAX_FALL_SPEED = 30;   // terminal velocity — also prevents tunneling
 // Surfaces steeper than this can't be ridden — hitting one bonks you off.
 // (Quarter-pipe segments max out at 68°, normal.y ≈ 0.37, still ridable.)
@@ -84,6 +88,9 @@ export class PlayerController {
   private coyoteTimer = 0;
   private jumpBuffer = 0;
   private jumpHeld = false;
+  // launch (vert eject) helpers — same buffered edge-trigger as jump
+  private launchBuffer = 0;
+  private launchHeld = false;
 
   // trick bookkeeping
   private airStart = 0;
@@ -109,11 +116,12 @@ export class PlayerController {
   private specialAnimT = SPECIAL_ANIM_TIME; // done
   private specialSpin = 0; // extra auto-spin (The 900)
 
-  // Vert air: launching off a steep transition (quarter pipe / bowl /
-  // half pipe wall) enters "vert" — horizontal drift toward/over the lip
-  // is pulled back so you rise, peak, and drop back down the SAME face.
-  // Holding boost (forward) suspends the pull so you can carry over the
-  // lip and exit deliberately. Drift ALONG the lip stays free.
+  // Vert lock: launching off a steep transition (quarter pipe / bowl /
+  // half pipe wall) LOCKS you to that ramp — horizontal drift toward/over
+  // the lip is always pulled back so you rise, peak, and drop the SAME
+  // face. Jump and boost keep you in the pipe (pump + tricks); only the
+  // launch button (↑ / ⤴) releases the lock and pops you out over the lip.
+  // Drift ALONG the lip stays free, so you can still ride off the end.
   private vertAir = false;
   private vertNormal = new THREE.Vector3(); // horizontal, points into the park
 
@@ -203,6 +211,10 @@ export class PlayerController {
     this.jumpHeld = input.jump;
     if (jumpPressed) this.jumpBuffer = 0.15;
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    const launchPressed = input.launch && !this.launchHeld;
+    this.launchHeld = input.launch;
+    if (launchPressed) this.launchBuffer = 0.15;
+    this.launchBuffer = Math.max(0, this.launchBuffer - dt);
     this.grindCooldown = Math.max(0, this.grindCooldown - dt);
     this.bonkEventCooldown = Math.max(0, this.bonkEventCooldown - dt);
 
@@ -263,6 +275,15 @@ export class PlayerController {
         this.coyoteTimer = 0; // so an air-tap right after this reads as a flip
         this.vel.y = Math.max(this.vel.y, 0) + this.stats.jumpPower;
         this.beginAir(elapsed);
+        // Ollie off a steep transition → stay LOCKED to the ramp (pump in
+        // the pipe) instead of clearing the lock like a flat-ground ollie.
+        if (this.groundNormal.y < 0.62) {
+          this.vertNormal.set(this.groundNormal.x, 0, this.groundNormal.z);
+          if (this.vertNormal.lengthSq() > 1e-4) {
+            this.vertNormal.normalize();
+            this.vertAir = true;
+          }
+        }
         this.squashVel = 4.5;
         this.events.onJump();
       }
@@ -271,13 +292,24 @@ export class PlayerController {
       // landing forgivingly re-aims it along the new facing.
       this.vel.y = Math.max(this.vel.y - GRAVITY * dt, -MAX_FALL_SPEED);
 
-      // Vert containment: damp the across-lip velocity toward a gentle
-      // back-into-the-ramp drift. Boost held = rider is pushing forward,
-      // so the pull is suspended and you can fly out of the pipe.
-      if (this.vertAir && !input.boost) {
+      // Vert lock: locked to the ramp you launched off. The across-lip
+      // velocity is always pulled back so you rise and drop the SAME face —
+      // jump and boost no longer eject you, they just pump and trick in the
+      // pipe. Tapping launch (↑ / ⤴) is the ONLY way out: it releases the
+      // lock and pops you up-and-out over the lip. Drift ALONG the lip is
+      // untouched, so you can still ride off the end of the ramp.
+      if (this.vertAir) {
         const vn = this.vel.dot(this.vertNormal);
-        const adjusted = THREE.MathUtils.damp(vn, 1.4, 7, dt);
-        this.vel.addScaledVector(this.vertNormal, adjusted - vn);
+        if (this.launchBuffer > 0) {
+          this.launchBuffer = 0;
+          this.vertAir = false;
+          this.vel.addScaledVector(this.vertNormal, -VERT_LAUNCH_OUT - vn); // reverse → outward
+          this.vel.y = Math.max(this.vel.y, 0) + VERT_LAUNCH_UP;
+          this.events.onJump();
+        } else {
+          const adjusted = THREE.MathUtils.damp(vn, VERT_PULL_IN, 7, dt);
+          this.vel.addScaledVector(this.vertNormal, adjusted - vn);
+        }
       }
       const spinDelta = -this.steerSmooth * AIR_SPIN_RATE * dt;
       this.yaw += spinDelta;
