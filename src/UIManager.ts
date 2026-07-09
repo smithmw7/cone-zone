@@ -194,13 +194,11 @@ export class UIManager {
       this.selectCards.set(def.id, card);
     }
 
-    // Locked teaser cards.
-    for (const name of ['???', '???']) {
-      const card = el('div', 'select-card locked', grid);
-      el('div', 'locked-silhouette', card, '👤');
-      el('div', 'card-name', card, name);
-      el('div', 'card-blurb', card, 'More types coming soon');
-    }
+    // Locked teaser card.
+    const locked = el('div', 'select-card locked', grid);
+    el('div', 'locked-silhouette', locked, '👤');
+    el('div', 'card-name', locked, '???');
+    el('div', 'card-blurb', locked, 'More types coming soon');
 
     const next = el('button', 'btn btn-big btn-primary', panel, 'CUSTOMIZE →');
     next.addEventListener('click', () => this.cb.onSelectConfirm());

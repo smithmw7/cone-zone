@@ -201,12 +201,24 @@ canvas.game-canvas {
   padding: 0 12px;
 }
 
+/* Always a single horizontally scrolling row — never crops a skater. */
 .select-grid {
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
   overflow-x: auto;
   max-width: 100%;
   padding: 6px 4px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.select-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.select-grid::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 99px;
 }
 
 .select-card {
@@ -396,23 +408,9 @@ canvas.game-canvas {
     border-radius: 24px;
   }
 
-  .screen-select {
-    align-items: flex-end;
-  }
-
-  .select-panel {
-    width: auto;
-    margin-right: 18px;
-    align-items: flex-end;
-  }
-
-  .select-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 190px);
-  }
-
+  /* Desktop: the select row stays a bottom strip; wider cards. */
   .select-card {
-    width: auto;
+    width: 190px;
   }
 }
 

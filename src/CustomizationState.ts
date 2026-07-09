@@ -7,7 +7,7 @@
  * from it via a change listener.
  */
 
-export type BodyType = 'cone' | 'tube' | 'ducky';
+export type BodyType = 'cone' | 'tube' | 'ducky' | 'finger' | 'teddy' | 'goat';
 export type AccessoryId = 'none' | 'beanie' | 'cowboy' | 'wizard' | 'sunglasses' | 'crown' | 'halo' | 'propeller';
 export type BoardId = 'default' | 'checkerboard' | 'neon' | 'wood' | 'pizza' | 'galaxy' | 'gold';
 export type TrailId = 'none' | 'sparkle' | 'smoke' | 'streak' | 'rainbow' | 'fire';
@@ -53,6 +53,27 @@ export const BODY_TYPES: BodyTypeDef[] = [
     blurb: 'Bath time legend. Slower, but lands with a bonus BOING.',
     stats: { maxSpeed: 10.5, accel: 13, turnRate: 2.4, jumpPower: 10.4, bounce: 0.45, wobble: 0.8, height: 1.25 },
     display: { speed: 0.4, turning: 0.5, bounce: 0.95 },
+  },
+  {
+    id: 'finger',
+    label: 'The Finger',
+    blurb: 'A big ol\' pointer. Fully opposable, mostly unstoppable.',
+    stats: { maxSpeed: 12.8, accel: 14, turnRate: 2.7, jumpPower: 10.8, bounce: 0.0, wobble: 1.3, height: 1.6 },
+    display: { speed: 0.8, turning: 0.7, bounce: 0.1 },
+  },
+  {
+    id: 'teddy',
+    label: 'Teddy',
+    blurb: 'Stuffed with courage (and fluff). Nice soft landings.',
+    stats: { maxSpeed: 10, accel: 12, turnRate: 2.5, jumpPower: 9.4, bounce: 0.3, wobble: 0.9, height: 1.3 },
+    display: { speed: 0.45, turning: 0.55, bounce: 0.7 },
+  },
+  {
+    id: 'goat',
+    label: 'The G.O.A.T.',
+    blurb: 'Literally a goat. Jumps like nobody\'s business.',
+    stats: { maxSpeed: 13, accel: 15, turnRate: 3.0, jumpPower: 11.2, bounce: 0.0, wobble: 1.1, height: 1.35 },
+    display: { speed: 0.9, turning: 0.85, bounce: 0.15 },
   },
 ];
 

@@ -275,6 +275,133 @@ function buildDuckyBody(color: number): BodyBuild {
   return { group, topAnchor: new THREE.Vector3(0, 1.32, 0.18), eyeAnchor: new THREE.Vector3(0, 1.1, 0.38) };
 }
 
+function darken(color: number, f = 0.78): number {
+  return new THREE.Color(color).multiplyScalar(f).getHex();
+}
+
+function buildFingerBody(color: number): BodyBuild {
+  const g = new THREE.Group();
+  const mat = lambert(color);
+
+  // Base mound (the "hand" it rises from) + big pointer shaft.
+  const mound = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 7), mat));
+  mound.scale.set(1.15, 0.5, 1.15);
+  mound.position.y = 0.1;
+  g.add(mound);
+
+  const shaft = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.31, 1.35, 10), mat));
+  shaft.position.y = 0.75;
+  g.add(shaft);
+
+  const tip = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), mat));
+  tip.position.y = 1.44;
+  g.add(tip);
+
+  // Fingernail on the back, eyes on the front. Perfection.
+  const nail = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.36, 0.07), lambert(0xf7e8dc)));
+  nail.position.set(0, 1.46, -0.22);
+  nail.rotation.x = 0.12;
+  g.add(nail);
+
+  // Knuckle creases.
+  const crease = lambert(darken(color));
+  for (const y of [0.55, 1.0]) {
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.295, 0.295, 0.05, 10), crease);
+    band.position.y = y;
+    g.add(band);
+  }
+
+  addEyes(g, 1.42, 0.2, 0.1);
+  return { group: g, topAnchor: new THREE.Vector3(0, 1.7, 0), eyeAnchor: new THREE.Vector3(0, 1.42, 0.18) };
+}
+
+function buildTeddyBody(color: number): BodyBuild {
+  const g = new THREE.Group();
+  const mat = lambert(color);
+  const light = lambert(0xf0dcbe);
+
+  const body = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 9), mat));
+  body.scale.set(1, 1.05, 0.85);
+  body.position.y = 0.52;
+  g.add(body);
+
+  const belly = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), light));
+  belly.scale.set(1, 1.15, 0.5);
+  belly.position.set(0, 0.5, 0.26);
+  g.add(belly);
+
+  const head = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9), mat));
+  head.position.y = 1.14;
+  g.add(head);
+
+  const muzzle = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), light));
+  muzzle.scale.set(1.1, 0.8, 0.9);
+  muzzle.position.set(0, 1.06, 0.24);
+  g.add(muzzle);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), lambert(0x3a2a20));
+  nose.position.set(0, 1.1, 0.36);
+  g.add(nose);
+
+  for (const side of [1, -1]) {
+    const ear = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), mat));
+    ear.position.set(side * 0.22, 1.38, 0);
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), light);
+    inner.position.set(side * 0.22, 1.38, 0.07);
+    const arm = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), mat));
+    arm.scale.set(1, 1.7, 1);
+    arm.position.set(side * 0.44, 0.66, 0.06);
+    arm.rotation.z = side * -0.45;
+    g.add(ear, inner, arm);
+  }
+
+  addEyes(g, 1.2, 0.24, 0.11, 0.8);
+  return { group: g, topAnchor: new THREE.Vector3(0, 1.46, 0), eyeAnchor: new THREE.Vector3(0, 1.2, 0.22) };
+}
+
+function buildGoatBody(color: number): BodyBuild {
+  const g = new THREE.Group();
+  const mat = lambert(color);
+  const bone = lambert(0xe0d6c2);
+
+  const body = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 9), mat));
+  body.scale.set(0.9, 1, 1.15);
+  body.position.y = 0.48;
+  g.add(body);
+
+  const head = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.36), mat));
+  head.position.set(0, 1.0, 0.14);
+  g.add(head);
+  const snout = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.24), mat));
+  snout.position.set(0, 0.92, 0.4);
+  g.add(snout);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.05), lambert(0x5a4438));
+  nose.position.set(0, 0.94, 0.52);
+  g.add(nose);
+
+  // Swept-back horns + floppy ears + the all-important beard.
+  for (const side of [1, -1]) {
+    const horn = shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.4, 6), bone));
+    horn.position.set(side * 0.12, 1.26, -0.02);
+    horn.rotation.x = -0.75;
+    const ear = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), mat));
+    ear.scale.set(0.55, 0.3, 0.9);
+    ear.position.set(side * 0.22, 1.04, 0.08);
+    ear.rotation.z = side * 0.9;
+    g.add(horn, ear);
+  }
+  const beard = shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), lambert(darken(color))));
+  beard.rotation.x = Math.PI;
+  beard.position.set(0, 0.78, 0.42);
+  g.add(beard);
+  const tail = shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), mat));
+  tail.rotation.x = -Math.PI / 3;
+  tail.position.set(0, 0.78, -0.44);
+  g.add(tail);
+
+  addEyes(g, 1.08, 0.3, 0.12, 0.8);
+  return { group: g, topAnchor: new THREE.Vector3(0, 1.34, 0.02), eyeAnchor: new THREE.Vector3(0, 1.08, 0.3) };
+}
+
 /* ------------------------------------------------------------------ */
 /* Accessories                                                         */
 /* ------------------------------------------------------------------ */
@@ -408,6 +535,15 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
       break;
     case 'ducky':
       build = buildDuckyBody(state.bodyColor);
+      break;
+    case 'finger':
+      build = buildFingerBody(state.bodyColor);
+      break;
+    case 'teddy':
+      build = buildTeddyBody(state.bodyColor);
+      break;
+    case 'goat':
+      build = buildGoatBody(state.bodyColor);
       break;
     default:
       build = buildConeBody(state.bodyColor);
