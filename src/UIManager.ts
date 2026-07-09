@@ -19,10 +19,12 @@
 import {
   CustomizationState,
   ACCESSORIES,
+  GLASSES,
   BOARDS,
   WHEEL_COLORS,
   TRAILS,
 } from './CustomizationState';
+import { COIN_PACKS, type CoinPack } from './Economy';
 import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
 import { LEVELS } from './Levels';
@@ -124,6 +126,7 @@ export class UIManager {
     this.buildHUD();
     this.buildPause();
     this.buildResults();
+    this.buildShop();
 
     // Every button clicks audibly (delegated so new buttons count too).
     this.root.addEventListener('click', (e) => {
@@ -161,7 +164,10 @@ export class UIManager {
 
     const best = Number(localStorage.getItem('coneZoneBest') ?? 0);
     if (best > 0) el('p', 'best-score', card, `Best score: ${best.toLocaleString()}`);
-    this.balanceEls.push(el('p', 'coin-balance', card, ''));
+    const wallet = el('div', 'wallet-row', card);
+    this.balanceEls.push(el('span', 'coin-balance', wallet, ''));
+    const getCoins = el('button', 'btn btn-small get-coins', wallet, '＋');
+    getCoins.addEventListener('click', () => this.openShop());
 
     const play = el('button', 'btn btn-big btn-primary', card, 'PLAY');
     play.addEventListener('click', () => this.cb.onPlay());
@@ -181,7 +187,10 @@ export class UIManager {
     const back = el('button', 'btn btn-small', top, '← Back');
     back.addEventListener('click', () => this.cb.onExitToMenu());
     el('h2', 'screen-title inline', top, 'MAKE IT YOURS');
-    this.balanceEls.push(el('div', 'coin-balance pill', top, ''));
+    // Balance pill doubles as the shop button — tap it to buy more coins.
+    const balPill = el('button', 'coin-balance pill shop-open', top, '');
+    balPill.addEventListener('click', () => this.openShop());
+    this.balanceEls.push(balPill);
 
     // Middle of the screen left clear for the 3D preview. The panel is a
     // compact bottom sheet: tab bar → one horizontally-scrolling chip row
@@ -273,6 +282,12 @@ export class UIManager {
       (id) => this.state.set('accessory', id),
     );
     chipRow(
+      'Glasses',
+      GLASSES.map((g) => ({ id: g.id, label: g.label, itemKey: `glasses:${g.id}`, price: g.price })),
+      (id) => this.state.glasses === id,
+      (id) => this.state.set('glasses', id),
+    );
+    chipRow(
       'Board',
       BOARDS.map((b) => ({ id: b.id, label: b.label, itemKey: `board:${b.id}`, price: b.price })),
       (id) => this.state.board === id,
@@ -319,7 +334,9 @@ export class UIManager {
 
     const top = el('div', 'customize-top', s);
     const back = el('button', 'btn btn-small', top, '← Back');
-    back.addEventListener('click', () => this.show('customize'));
+    // Route through setMode so the preview rebuilds (plain show() left the
+    // app in 'levels' mode, so customize edits didn't update the preview).
+    back.addEventListener('click', () => this.cb.onCustomize());
     el('h2', 'screen-title inline', top, 'PICK A SPOT');
 
     const panel = el('div', 'select-panel', s);
@@ -501,6 +518,62 @@ export class UIManager {
 
   private closeMusicPlayer(): void {
     this.musicOverlay.classList.add('hidden');
+  }
+
+  /* ---------------------------------------------------------- */
+  /* Coin shop (buy coin packs for USD)                          */
+  /* ---------------------------------------------------------- */
+
+  private shopOverlay!: HTMLElement;
+
+  private buildShop(): void {
+    const overlay = el('div', 'shop-overlay hidden', this.root);
+    this.shopOverlay = overlay;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeShop();
+    });
+
+    const sheet = el('div', 'shop-sheet', overlay);
+    const head = el('div', 'shop-head', sheet);
+    el('h2', 'shop-title', head, '🪙 COIN SHOP');
+    const close = el('button', 'btn btn-small', head, '✕');
+    close.addEventListener('click', () => this.closeShop());
+
+    // Live wallet balance (registered so refreshBalances keeps it current).
+    this.balanceEls.push(el('div', 'shop-balance', sheet, ''));
+
+    const grid = el('div', 'shop-grid', sheet);
+    for (const pack of COIN_PACKS) {
+      const card = el('div', 'coinpack', grid);
+      if (pack.bonus) el('div', 'coinpack-badge', card, pack.bonus);
+      el('div', 'coinpack-icon', card, '🪙');
+      el('div', 'coinpack-coins', card, pack.coins.toLocaleString());
+      const buy = el('button', 'btn btn-small coinpack-buy', card, `$${pack.usd.toFixed(2)}`);
+      buy.addEventListener('click', () => this.purchase(pack));
+    }
+
+    el('p', 'shop-note', sheet, 'Demo store — purchases are simulated (no real charge).');
+  }
+
+  private purchase(pack: CoinPack): void {
+    // A static build has no payment processor, so the checkout is stubbed:
+    // grant the coins immediately and confirm. Swap this for a real
+    // provider (Stripe Checkout, etc.) when there's a backend.
+    this.economy.addCoins(pack.coins);
+    this.refreshBalances();
+    const toast = el('div', 'shop-toast', this.shopOverlay, `+${pack.coins.toLocaleString()} 🪙`);
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    setTimeout(() => toast.remove(), 1400);
+  }
+
+  private openShop(): void {
+    this.refreshBalances();
+    this.shopOverlay.classList.remove('hidden');
+  }
+
+  private closeShop(): void {
+    this.shopOverlay.classList.add('hidden');
   }
 
   setScore(score: number): void {
