@@ -304,12 +304,24 @@ canvas.game-canvas {
   justify-content: flex-start;
 }
 
+/* Full-width horizontal carousel: the row fills the screen so it's a real
+   scroll viewport, snaps card-to-card, and stays centered when the levels
+   already fit. `safe center` keeps the first card reachable once they
+   overflow (plain `center` would clip the left edge out of scroll range). */
+.screen-levels .select-grid {
+  width: 100%;
+  justify-content: safe center;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+}
+
 .level-card {
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  scroll-snap-align: center;
 }
 
 .level-icon {
