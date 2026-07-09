@@ -111,7 +111,9 @@ function buildMegaCanyon(p: SkateParkScene): void {
   p.moduleBank(70, -28, Math.PI, 6, 24);        // north approach bank
   p.moduleQuarterPipe(70, 7.6, Math.PI, 2, 20, 2.4, 6); // QP on the plateau's south edge
   p.moduleKicker(64, -10, Math.PI / 2, 2, 8, 6);        // kicker ON TOP → mega air off the drop
-  p.moduleRail(50, 6.5, -24, 50, 6.5, 0);               // grind line along the drop edge
+  // Drop-edge grind line on the EAST rim (the west/north rims are the bank
+  // entries — a rail there would clothesline riders cresting the climb).
+  p.moduleRail(90, 6.5, -24, 90, 6.5, 4);
   p.moduleRoller(80, -10, 0, 8, 6);
 
   // Floor street.
@@ -137,7 +139,7 @@ function buildMegaCanyon(p: SkateParkScene): void {
     // halfpipe + banks
     [-58, 4.6, 42], [-88, 5, 24],
     // rails/ledges/stairs
-    [0, 1.4, 44], [24, 1.9, -44], [50, 7, -12], [16, 1.4, 52], [-80, 2.4, -36], [60, 2.6, 48],
+    [0, 1.4, 44], [24, 1.9, -44], [90, 7, -10], [16, 1.4, 52], [-80, 2.4, -36], [60, 2.6, 48],
     // cruise
     [0, 0.9, 12], [-40, 0.9, 20], [70, 6.9, -10], [84, 0.9, 40], [-70, 0.9, -40],
   ]);
@@ -185,17 +187,23 @@ function buildPowderPeak(p: SkateParkScene): void {
   for (let i = 0; i < 6; i++) {
     p.moduleRoller(14 + (i % 3) * 12, 2 + Math.floor(i / 3) * 6, 0, 8);
   }
-  p.moduleRail(-16, 0.5, 40, 8, 0.5, 40);      // long ice rail
-  p.moduleRail(-30, 1.0, 12, -14, 1.0, 12);    // high ice rail
+  // Ice rails kept OUT of the spawn lane (spawn runs straight north at
+  // x=0 — nothing perpendicular in that corridor).
+  p.moduleRail(16, 0.5, 40, 40, 0.5, 40);      // long ice rail, east side
+  p.moduleRail(-30, 1.0, 12, -14, 1.0, 12);    // high ice rail, west side
   p.moduleLedge(20, 52, 0, 14, 0.5);
   p.moduleManualPad(-40, 48, 0, 10);
+
+  // Spawn lane: a friendly starter kicker, then a clean run at the
+  // mountain banks — first 20 seconds = jump, climb, drop. That's the loop.
+  p.moduleKicker(0, 34, 0, 1, 10);
 
   // South wall returns to pump back toward the mountain.
   p.moduleQuarterPipe(-30, 63.4, Math.PI, 2, 20);
   p.moduleQuarterPipe(30, 63.4, Math.PI, 2, 20);
   p.moduleBank(-70, 63.4, Math.PI, 2, 12);
   p.moduleBank(70, 63.4, Math.PI, 2, 12);
-  p.modulePyramid(0, 20, 2);
+  p.modulePyramid(-26, 14, 2); // moved off the spawn lane
 
   p.placeCollectibles([
     // drop arcs off the shelf kickers
@@ -206,18 +214,18 @@ function buildPowderPeak(p: SkateParkScene): void {
     [0, 6.9, -48], [0, 3.9, -31], [0, 1.4, -14],
     // down-rails
     [46, 2.8, -14], [-46, 2.8, -14],
-    // flats: halfpipe, bowls, moguls, rails
-    [-56, 4.6, 24], [44, 3.4, 20], [74, 2.2, 46], [26, 1.4, 5], [-4, 1.4, 40],
-    [-22, 1.9, 12], [20, 1.4, 52],
+    // flats: halfpipe, bowls, moguls, rails, starter kicker
+    [-56, 4.6, 24], [44, 3.4, 20], [74, 2.2, 46], [26, 1.4, 5], [28, 1.4, 40],
+    [-22, 1.9, 12], [20, 1.4, 52], [0, 2.2, 34],
     // south returns + pyramid
-    [-30, 3.4, 59.2], [30, 3.4, 59.2], [0, 3.2, 20],
+    [-30, 3.4, 59.2], [30, 3.4, 59.2], [-26, 3.2, 14],
     // cruise
     [-80, 0.9, 30], [80, 0.9, 10], [0, 0.9, 48],
   ]);
   p.placeBoostOrbs([
     [0, 9.8, -59], [-40, 9.8, -59], [40, 9.8, -59],  // summit refills
     [0, 6.8, -42], [0, 3.8, -26],                     // shelf refills
-    [-56, 1, 24], [44, 2.8, 20], [0, 1, 34], [-70, 1, 0], [70, 1, -6], [20, 1, 20],
+    [-56, 1, 24], [44, 2.8, 20], [0, 2.3, 34], [-70, 1, 0], [70, 1, -6], [20, 1, 20],
   ]);
 }
 

@@ -109,6 +109,14 @@ export class PlayerController {
   private specialAnimT = SPECIAL_ANIM_TIME; // done
   private specialSpin = 0; // extra auto-spin (The 900)
 
+  // Vert air: launching off a steep transition (quarter pipe / bowl /
+  // half pipe wall) enters "vert" — horizontal drift toward/over the lip
+  // is pulled back so you rise, peak, and drop back down the SAME face.
+  // Holding boost (forward) suspends the pull so you can carry over the
+  // lip and exit deliberately. Drift ALONG the lip stays free.
+  private vertAir = false;
+  private vertNormal = new THREE.Vector3(); // horizontal, points into the park
+
   // grind state
   private grindRail: RailSegment | null = null;
   private grindT = 0;
@@ -262,6 +270,15 @@ export class PlayerController {
       // AIR: gravity + trick spin. Horizontal velocity is preserved;
       // landing forgivingly re-aims it along the new facing.
       this.vel.y = Math.max(this.vel.y - GRAVITY * dt, -MAX_FALL_SPEED);
+
+      // Vert containment: damp the across-lip velocity toward a gentle
+      // back-into-the-ramp drift. Boost held = rider is pushing forward,
+      // so the pull is suspended and you can fly out of the pipe.
+      if (this.vertAir && !input.boost) {
+        const vn = this.vel.dot(this.vertNormal);
+        const adjusted = THREE.MathUtils.damp(vn, 1.4, 7, dt);
+        this.vel.addScaledVector(this.vertNormal, adjusted - vn);
+      }
       const spinDelta = -this.steerSmooth * AIR_SPIN_RATE * dt;
       this.yaw += spinDelta;
       this.spinAccum += spinDelta;
@@ -385,7 +402,15 @@ export class PlayerController {
       } else {
         // Left the ground: rode off a ramp lip or an edge.
         if (this.vel.y > 1.2) this.vel.y *= LAUNCH_BOOST; // ramps throw you
+        const steepLaunch = this.groundNormal.y < 0.55 && this.vel.y > 4;
         this.beginAir(elapsed);
+        if (steepLaunch) {
+          this.vertNormal.set(this.groundNormal.x, 0, this.groundNormal.z);
+          if (this.vertNormal.lengthSq() > 1e-4) {
+            this.vertNormal.normalize();
+            this.vertAir = true;
+          }
+        }
       }
     } else {
       const falling = this.vel.y <= 0.15;
@@ -397,6 +422,13 @@ export class PlayerController {
           this.vel.y = 0;
           this.groundNormal.copy(ground.normal);
           this.mode = 'ground';
+          this.vertAir = false;
+          // Landing back on a steep transition: auto-face down the ramp
+          // (the fakie save) so you roll back into the pipe, not the wall.
+          if (ground.normal.y < 0.55) {
+            this.yaw = Math.atan2(ground.normal.x, ground.normal.z);
+            this.speed = Math.max(this.speed, 4);
+          }
         }
       }
     }
@@ -439,6 +471,7 @@ export class PlayerController {
       this.airStart = elapsed;
       this.airDistance = 0;
       this.spinAccum = 0;
+      this.vertAir = false; // launch code re-arms it for steep transitions
     }
   }
 
@@ -585,6 +618,7 @@ export class PlayerController {
         this.events.onLand(elapsed - this.airStart, spinDeg);
 
         this.mode = 'grind';
+        this.vertAir = false;
         this.grindRail = rail;
         this.grindT = t;
         const along = this.vel.dot(rail.dir);

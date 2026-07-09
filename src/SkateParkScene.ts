@@ -477,12 +477,22 @@ export class SkateParkScene {
 
     this.sky = new SkySystem(this.scene, sun, hemi);
 
-    // Tree ring around the park (pines with snow tips on snow themes).
+    // Tree ring OUTSIDE the walls: walk the wall rectangle's perimeter and
+    // push each tree outward. (An ellipse ring dips inside a rectangle's
+    // corners, which used to leave trees overlapping walls and the park.)
     const count = Math.round((this.bounds.x + this.bounds.z) / 8);
     for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      const rx = this.bounds.x + 8 + (i % 3) * 4;
-      const rz = this.bounds.z + 8 + ((i * 7) % 4) * 3;
+      const u = (i / count) * 4;
+      const side = Math.floor(u);
+      const f = u - side;
+      const out = 7 + (i % 3) * 4; // stagger depth so it's not a fence
+      const bx = this.bounds.x + 2;
+      const bz = this.bounds.z + 2;
+      let tx = 0, tz = 0;
+      if (side === 0) { tx = -bx + f * 2 * bx; tz = -(bz + out); }
+      else if (side === 1) { tx = bx + out; tz = -bz + f * 2 * bz; }
+      else if (side === 2) { tx = bx - f * 2 * bx; tz = bz + out; }
+      else { tx = -(bx + out); tz = bz - f * 2 * bz; }
       const tree = new THREE.Group();
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.6, 7), this.mat(this.theme.treeTrunk));
       trunk.position.y = 1.3;
@@ -504,7 +514,7 @@ export class SkateParkScene {
         crown.castShadow = true;
         tree.add(crown);
       }
-      tree.position.set(Math.cos(a) * rx, 0, Math.sin(a) * rz);
+      tree.position.set(tx, 0, tz);
       this.scene.add(tree);
     }
 

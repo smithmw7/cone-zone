@@ -599,6 +599,7 @@ export class UIManager {
     hint('The 900', '◀/▶ + hold boost + tap jump');
     hint('Christ Air', 'S/↓ + hold boost + tap jump');
     section('OTHER');
+    hint('Vert air', 'pulls you back into the pipe — hold boost to fly out');
     hint('Refill boost', 'rest, or grab blue orbs');
     hint('Reset / Pause / Debug', 'R · Esc/P · V');
 
