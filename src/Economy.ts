@@ -11,6 +11,22 @@ const COINS_KEY = 'coneZoneCoins';
 const OWNED_KEY = 'coneZoneOwned';
 const STARTING_COINS = 150; // enough to buy something on day one
 
+/** Purchasable coin packs (real-money shop). `bonus` is a marketing badge. */
+export interface CoinPack {
+  id: string;
+  coins: number;
+  usd: number;
+  bonus?: string;
+}
+
+export const COIN_PACKS: CoinPack[] = [
+  { id: 'handful', coins: 500, usd: 0.99 },
+  { id: 'sack', coins: 1500, usd: 1.99, bonus: 'Starter' },
+  { id: 'bucket', coins: 4000, usd: 4.99, bonus: '+33%' },
+  { id: 'vault', coins: 10000, usd: 9.99, bonus: 'Best value' },
+  { id: 'mountain', coins: 25000, usd: 19.99, bonus: '+150%' },
+];
+
 export class Economy {
   coins: number;
   private owned: Set<string>;

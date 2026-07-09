@@ -493,6 +493,38 @@ function buildAccessory(
       g.rotation.z = -0.1;
       break;
     }
+    case 'chef': {
+      const white = lambert(0xf7f4ee);
+      const band = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.12, 12), white));
+      band.position.y = 0.06;
+      const puff = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 9), white));
+      puff.scale.set(1, 0.82, 1);
+      puff.position.y = 0.28;
+      g.add(band, puff);
+      g.position.copy(top).add(new THREE.Vector3(0, -0.02, 0));
+      break;
+    }
+    case 'party': {
+      const cone = shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.5, 12), lambert(0xff5ea8)));
+      cone.position.y = 0.25;
+      const pom = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), lambert(0xffe14d)));
+      pom.position.y = 0.5;
+      g.add(cone, pom);
+      g.position.copy(top);
+      g.rotation.z = 0.12;
+      break;
+    }
+    case 'tophat': {
+      const black = lambert(0x1c1c22);
+      const brim = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 16), black));
+      const barrel = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.42, 16), black));
+      barrel.position.y = 0.23;
+      const band = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.08, 16), lambert(0xd63b2f)));
+      band.position.y = 0.08;
+      g.add(brim, barrel, band);
+      g.position.copy(top);
+      break;
+    }
     case 'sunglasses': {
       const black = lambert(0x14141a);
       for (const side of [1, -1]) {
@@ -502,6 +534,73 @@ function buildAccessory(
       }
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.035, 0.04), black);
       bridge.position.set(0, 0.02, 0.06);
+      g.add(bridge);
+      g.position.copy(eyes).add(new THREE.Vector3(0, 0.02, 0.05));
+      break;
+    }
+    case 'round': {
+      const frame = lambert(0x2a2a30);
+      const glass = lambert(0x6fd0e0, { emissive: 0x2a8090, emissiveIntensity: 0.3 });
+      for (const side of [1, -1]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.02, 8, 14), frame);
+        ring.position.set(side * 0.1, 0, 0.06);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.07, 14), glass);
+        lens.position.set(side * 0.1, 0, 0.055);
+        g.add(ring, lens);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.03), frame);
+      bridge.position.set(0, 0, 0.06);
+      g.add(bridge);
+      g.position.copy(eyes).add(new THREE.Vector3(0, 0.02, 0.05));
+      break;
+    }
+    case 'visor': {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.05), lambert(0x1a1a22));
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.06), lambert(0x14e0ff, { emissive: 0x14b0d0, emissiveIntensity: 0.85 }));
+      bar.position.z = 0.03;
+      g.add(frame, bar);
+      g.position.copy(eyes).add(new THREE.Vector3(0, 0.03, 0.06));
+      break;
+    }
+    case 'threed': {
+      const frame = lambert(0xffffff);
+      const tints = [
+        lambert(0xff2b3a, { emissive: 0x901018, emissiveIntensity: 0.3 }),
+        lambert(0x2be0ff, { emissive: 0x108090, emissiveIntensity: 0.3 }),
+      ];
+      let i = 0;
+      for (const side of [1, -1]) {
+        const rim = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.13, 0.02), frame);
+        rim.position.set(side * 0.1, 0, 0.055);
+        const lens = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.02), tints[i++]);
+        lens.position.set(side * 0.1, 0, 0.065);
+        g.add(rim, lens);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.02), frame);
+      bridge.position.set(0, 0.02, 0.06);
+      g.add(bridge);
+      g.position.copy(eyes).add(new THREE.Vector3(0, 0.02, 0.05));
+      break;
+    }
+    case 'star': {
+      const starShape = new THREE.Shape();
+      const spikes = 5, outer = 0.095, inner = 0.042;
+      for (let k = 0; k < spikes * 2; k++) {
+        const r = k % 2 === 0 ? outer : inner;
+        const a = (k / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+        const px = Math.cos(a) * r, py = Math.sin(a) * r;
+        k === 0 ? starShape.moveTo(px, py) : starShape.lineTo(px, py);
+      }
+      starShape.closePath();
+      const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.03, bevelEnabled: false });
+      const gold = lambert(0xffd21f, { emissive: 0x8a6a10, emissiveIntensity: 0.5 });
+      for (const side of [1, -1]) {
+        const star = new THREE.Mesh(starGeo, gold);
+        star.position.set(side * 0.1, 0, 0.05);
+        g.add(star);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.03), gold);
+      bridge.position.set(0, 0, 0.06);
       g.add(bridge);
       g.position.copy(eyes).add(new THREE.Vector3(0, 0.02, 0.05));
       break;
@@ -870,8 +969,11 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
   body.add(burger.group);
 
   const spinners: THREE.Object3D[] = [];
-  const acc = buildAccessory(state.accessory, burger.topAnchor, burger.eyeAnchor, spinners);
-  if (acc) burger.topBun.add(acc);
+  // Hat + glasses are independent slots now, both riding the top bun.
+  const hat = buildAccessory(state.accessory, burger.topAnchor, burger.eyeAnchor, spinners);
+  if (hat) burger.topBun.add(hat);
+  const specs = buildAccessory(state.glasses, burger.topAnchor, burger.eyeAnchor, spinners);
+  if (specs) burger.topBun.add(specs);
 
   const trailAnchor = new THREE.Object3D();
   trailAnchor.position.set(0, 0.12, -0.65);

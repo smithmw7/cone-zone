@@ -733,6 +733,165 @@ canvas.game-canvas {
 
 /* ---------- music player (jukebox) ---------- */
 
+/* ---------- coin shop ---------- */
+
+.wallet-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.get-coins {
+  padding: 4px 12px;
+  font-size: 18px;
+  line-height: 1;
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 4px 0 var(--orange-dark);
+}
+
+.coin-balance.shop-open {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.shop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 24, 36, 0.55);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+  animation: fadein 0.15s ease-out;
+}
+
+.shop-sheet {
+  width: min(520px, 100%);
+  max-height: min(84vh, 660px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: sheetpop 0.18s ease-out;
+}
+
+.shop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+}
+
+.shop-title {
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+
+.shop-balance {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--orange-dark);
+  padding-bottom: 8px;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 8px 18px 4px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.coinpack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px 12px;
+  background: #fffdf7;
+  border: 2px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+}
+
+.coinpack-badge {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  background: var(--orange);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  box-shadow: 0 2px 0 var(--orange-dark);
+}
+
+.coinpack-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.coinpack-coins {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.coinpack-buy {
+  margin-top: 4px;
+  width: 100%;
+  background: #3fce5a;
+  color: #fff;
+  box-shadow: 0 4px 0 #2a9a40;
+}
+
+.coinpack-buy:active {
+  box-shadow: 0 1px 0 #2a9a40;
+}
+
+.shop-note {
+  padding: 10px 18px 16px;
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.shop-toast {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  background: var(--ink);
+  color: #ffe14d;
+  font-weight: 900;
+  font-size: 22px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: transform 0.2s, opacity 0.2s;
+  pointer-events: none;
+}
+
+.shop-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
 .music-overlay {
   position: absolute;
   inset: 0;

@@ -8,7 +8,9 @@
  */
 
 export type BodyType = 'cone' | 'tube' | 'ducky' | 'finger' | 'teddy' | 'goat';
-export type AccessoryId = 'none' | 'beanie' | 'cowboy' | 'wizard' | 'sunglasses' | 'crown' | 'halo' | 'propeller';
+export type AccessoryId =
+  | 'none' | 'beanie' | 'chef' | 'cowboy' | 'party' | 'wizard' | 'tophat' | 'propeller' | 'crown' | 'halo';
+export type GlassesId = 'none' | 'sunglasses' | 'round' | 'star' | 'visor' | 'threed';
 export type BoardId = 'default' | 'checkerboard' | 'neon' | 'wood' | 'pizza' | 'galaxy' | 'gold';
 export type TrailId = 'none' | 'sparkle' | 'smoke' | 'streak' | 'rainbow' | 'fire';
 
@@ -94,15 +96,28 @@ export const BODY_COLORS: { id: string; label: string; hex: number }[] = [
  * Catalogs double as the SHOP: items with `price > 0` must be bought with
  * coins (Economy) before they can be equipped. price 0/absent = free.
  */
+/** Hats (topper slot). Glasses are their own slot so you can wear both. */
 export const ACCESSORIES: { id: AccessoryId; label: string; price: number }[] = [
   { id: 'none', label: 'None', price: 0 },
   { id: 'beanie', label: 'Beanie', price: 0 },
-  { id: 'sunglasses', label: 'Sunglasses', price: 60 },
+  { id: 'chef', label: 'Chef Toque', price: 60 },
+  { id: 'party', label: 'Party Hat', price: 70 },
   { id: 'cowboy', label: 'Cowboy Hat', price: 80 },
+  { id: 'tophat', label: 'Top Hat', price: 110 },
   { id: 'wizard', label: 'Wizard Hat', price: 120 },
   { id: 'propeller', label: 'Propeller Cap', price: 180 },
   { id: 'crown', label: 'Crown', price: 250 },
   { id: 'halo', label: 'Halo', price: 400 },
+];
+
+/** Glasses (eyewear slot). */
+export const GLASSES: { id: GlassesId; label: string; price: number }[] = [
+  { id: 'none', label: 'None', price: 0 },
+  { id: 'sunglasses', label: 'Sunglasses', price: 60 },
+  { id: 'round', label: 'Round Specs', price: 70 },
+  { id: 'visor', label: 'Cyber Visor', price: 120 },
+  { id: 'threed', label: '3D Glasses', price: 140 },
+  { id: 'star', label: 'Star Shades', price: 200 },
 ];
 
 export const BOARDS: { id: BoardId; label: string; price: number }[] = [
@@ -139,6 +154,7 @@ export class CustomizationState {
   bodyType: BodyType = 'cone';
   bodyColor: number = BODY_COLORS[0].hex;
   accessory: AccessoryId = 'none';
+  glasses: GlassesId = 'none';
   board: BoardId = 'default';
   wheelColor: number = WHEEL_COLORS[0].hex;
   trail: TrailId = 'sparkle';
@@ -150,7 +166,7 @@ export class CustomizationState {
   }
 
   /** Generic setter that notifies listeners (UI chips call this). */
-  set<K extends 'bodyType' | 'bodyColor' | 'accessory' | 'board' | 'wheelColor' | 'trail'>(
+  set<K extends 'bodyType' | 'bodyColor' | 'accessory' | 'glasses' | 'board' | 'wheelColor' | 'trail'>(
     key: K,
     value: this[K],
   ): void {
