@@ -18,8 +18,6 @@
  */
 import {
   CustomizationState,
-  BODY_TYPES,
-  BODY_COLORS,
   ACCESSORIES,
   BOARDS,
   WHEEL_COLORS,
@@ -61,6 +59,7 @@ export interface ResultsData {
   coins: number;
   totalCoins: number;
   tricks: number;
+  tallestBurger: number; // layers, incl. the base patty
   coinsBanked: number; // coins + score bonus added to the wallet
   balance: number;     // wallet after banking
 }
@@ -156,9 +155,9 @@ export class UIManager {
     this.screens.set('start', s);
 
     const card = el('div', 'title-card', s);
-    el('div', 'title-emoji', card, '🚧');
-    el('h1', 'game-title', card, 'CONE ZONE');
-    el('p', 'tagline', card, 'Totally radical traffic safety.');
+    el('div', 'title-emoji', card, '🍔');
+    el('h1', 'game-title', card, 'SKATE BURGER');
+    el('p', 'tagline', card, 'Stack it. Shred it. Don’t drop it.');
 
     const best = Number(localStorage.getItem('coneZoneBest') ?? 0);
     if (best > 0) el('p', 'best-score', card, `Best score: ${best.toLocaleString()}`);
@@ -265,18 +264,8 @@ export class UIManager {
       this.customizeSyncs.push(sync);
     };
 
-    chipRow(
-      'Body',
-      BODY_TYPES.map((b) => ({ id: b.id, label: b.label, itemKey: `body:${b.id}`, price: 0 })),
-      (id) => this.state.bodyType === id,
-      (id) => this.state.set('bodyType', id),
-    );
-    chipRow(
-      'Color',
-      BODY_COLORS.map((c) => ({ id: c.hex, label: c.label, hex: c.hex, itemKey: `color:${c.id}`, price: 0 })),
-      (hex) => this.state.bodyColor === hex,
-      (hex) => this.state.set('bodyColor', hex),
-    );
+    // SKATE BURGER era: the Body/Color rows are hidden — everyone rides as
+    // the Burger for now (the classic crew lives on in CharacterFactory).
     chipRow(
       'Hat',
       ACCESSORIES.map((a) => ({ id: a.id, label: a.label, itemKey: `acc:${a.id}`, price: a.price })),
@@ -301,7 +290,7 @@ export class UIManager {
       (id) => this.state.trail === id,
       (id) => this.state.set('trail', id),
     );
-    selectTab('Body');
+    selectTab('Hat');
 
     // Pinned to the bottom of the sheet, always visible.
     const skate = el('button', 'btn btn-big btn-primary skate-btn', panel, 'SKATE! 🛹');
@@ -373,7 +362,7 @@ export class UIManager {
     this.comboEl = el('div', 'hud-combo hidden', topLeft, 'x1');
     const barTrack = el('div', 'combo-track', topLeft);
     this.comboBar = el('div', 'combo-fill', barTrack);
-    this.coinCountEl = el('div', 'hud-cones', topLeft, '🪙 0/0');
+    this.coinCountEl = el('div', 'hud-cones', topLeft, '📦 0/0 · 🍔 1');
     // Special-trick meter: fills with tricks; full = specials unlocked.
     this.specialWrap = el('div', 'special-wrap', topLeft);
     el('div', 'special-label', this.specialWrap, 'SPECIAL');
@@ -583,8 +572,23 @@ export class UIManager {
     setTimeout(() => fly.remove(), 900);
   }
 
+  private boxesLine = { collected: 0, total: 0, burger: 1 };
+
   setCoinCount(collected: number, total: number): void {
-    this.coinCountEl.textContent = `🪙 ${collected}/${total}`;
+    this.boxesLine.collected = collected;
+    this.boxesLine.total = total;
+    this.renderBoxesLine();
+  }
+
+  /** Current burger stack height (layers incl. the base patty). */
+  setBurgerHeight(layers: number): void {
+    this.boxesLine.burger = layers;
+    this.renderBoxesLine();
+  }
+
+  private renderBoxesLine(): void {
+    const b = this.boxesLine;
+    this.coinCountEl.textContent = `📦 ${b.collected}/${b.total} · 🍔 ${b.burger}`;
   }
 
   setBoost(frac: number): void {
@@ -735,8 +739,9 @@ export class UIManager {
       el('span', 'result-value', row, value);
     };
     stat('SCORE', data.score.toLocaleString(), true);
+    stat('Tallest burger', `🍔 ${data.tallestBurger} layers`);
     stat('Biggest chain', `${data.bestCombo} moves`);
-    stat('Coins collected', `${data.coins}/${data.totalCoins}`);
+    stat('Mystery boxes', `📦 ${data.coins}/${data.totalCoins}`);
     stat('Moves banked', String(data.tricks));
     stat('Banked', `+${data.coinsBanked} 🪙`);
     stat('Wallet', `🪙 ${data.balance.toLocaleString()}`);

@@ -62,6 +62,8 @@ export class GameApp {
   // input
   private keys = new Set<string>();
   private input: InputState = { steer: 0, throttle: 0, jump: false, boost: false, launch: false };
+  /** biggest stack built this run (layers incl. the base patty) */
+  private tallestBurger = 1;
   private paused = false;
 
   constructor(private container: HTMLElement) {
@@ -199,6 +201,13 @@ export class GameApp {
         },
         onBonk: () => {
           this.score.bonkVoid();
+          // WIPEOUT: the burger crashes out — every collected topping flies
+          // off as physics debris and you're back to a basic bun + patty.
+          const flew = this.playerRig?.stack?.wipeout() ?? 0;
+          if (flew > 0) {
+            this.ui.trickPopup('🍔 BURGER DOWN!', 0);
+            this.ui.setBurgerHeight(this.playerRig?.stack?.count ?? 1);
+          }
           this.audio.bonk();
         },
     };
@@ -252,7 +261,9 @@ export class GameApp {
     this.controller.resetBoost();
     this.audio.startMusic();
     this.score.startRun();
+    this.tallestBurger = 1;
     this.ui.setCoinCount(0, this.park.totalCollectibles);
+    this.ui.setBurgerHeight(1);
 
     // Snap camera behind the player so the run doesn't start with a swoop.
     const fwd = this.controller.forward;
@@ -274,6 +285,7 @@ export class GameApp {
       coins: runCoins,
       totalCoins: this.park.totalCollectibles,
       tricks: this.score.movesBanked,
+      tallestBurger: this.tallestBurger,
       coinsBanked: runCoins + bonus,
       balance: this.economy.coins,
     });
@@ -414,11 +426,19 @@ export class GameApp {
         this.score.update(dt);
         this.ui.setTimer(this.score.timeLeft);
 
-        // Pickups: gold coins (currency + score), blue orbs (boost refill).
+        // Pickups: mystery boxes (topping + coin + score), orbs (boost).
         const got = this.park.update(dt, this.controller.pos);
-        for (let i = 0; i < got.coins; i++) this.score.coin();
+        for (let i = 0; i < got.coins; i++) {
+          this.score.coin();
+          // The box spins, the reveal pops: a random topping joins the stack.
+          const topping = this.playerRig?.stack?.addRandomTopping();
+          if (topping) this.ui.trickPopup(`${topping.emoji} ${topping.label.toUpperCase()}!`, 0);
+        }
         if (got.coins > 0) {
+          const h = this.playerRig?.stack?.count ?? 1;
+          this.tallestBurger = Math.max(this.tallestBurger, h);
           this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
+          this.ui.setBurgerHeight(h);
           this.audio.coin();
         }
         if (got.orbs > 0) {

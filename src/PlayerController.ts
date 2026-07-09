@@ -753,6 +753,9 @@ export class PlayerController {
     rig.root.position.copy(this.pos);
     rig.root.rotation.y = this.yaw;
 
+    // Skate Burger: sway/settle the topping tower + fly wipeout debris.
+    rig.stack?.update(dt, this.vel, this.yaw);
+
     // Tilt the whole rig to match the ground slope (in local yaw space).
     const localNormal = this.groundNormal
       .clone()

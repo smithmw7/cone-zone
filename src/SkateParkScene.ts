@@ -777,24 +777,36 @@ vec3 triplanarColor() {
   }
 
   /* ================================================================ */
-  /* Collectibles: gold coins & blue boost orbs                       */
+  /* Collectibles: mystery boxes & blue boost orbs                    */
   /* ================================================================ */
 
+  /**
+   * Mystery boxes — spinning golden "?" crates. Each one collected drops
+   * a random topping onto the burger (and still banks a coin).
+   */
   placeCollectibles(spots: [number, number, number][]): void {
-    const coinMat = new THREE.MeshLambertMaterial({
-      color: 0xffce3d, emissive: 0x8a6a10, emissiveIntensity: 0.55, flatShading: true,
+    const qTex = texFromCanvas((ctx, s) => {
+      ctx.fillStyle = '#f2b632';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = '#b57f14';
+      ctx.lineWidth = s * 0.09;
+      ctx.strokeRect(0, 0, s, s);
+      ctx.fillStyle = '#fff6e0';
+      ctx.font = `900 ${s * 0.62}px 'Arial Rounded MT Bold', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', s / 2, s * 0.55);
     });
-    const innerMat = new THREE.MeshLambertMaterial({
-      color: 0xffe388, emissive: 0xa8842a, emissiveIntensity: 0.5, flatShading: true,
+    const boxMat = new THREE.MeshLambertMaterial({
+      map: qTex, emissive: 0x6a4a10, emissiveIntensity: 0.35, flatShading: true,
     });
     for (const [x, y, z] of spots) {
       const g = new THREE.Group();
-      const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.09, 14), coinMat);
-      coin.rotation.x = Math.PI / 2;
-      const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.1, 14), innerMat);
-      inner.rotation.x = Math.PI / 2;
-      g.add(coin, inner);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), boxMat);
+      box.castShadow = true;
+      g.add(box);
       g.position.set(x, y, z);
+      g.userData.baseY = y;
       this.scene.add(g);
       this.collectibles.push({ mesh: g, taken: false });
     }
@@ -825,7 +837,8 @@ vec3 triplanarColor() {
     let coins = 0;
     for (const c of this.collectibles) {
       if (c.taken) continue;
-      c.mesh.rotation.y += dt * 3;
+      c.mesh.rotation.y += dt * 3; // the mystery spin
+      c.mesh.position.y = c.mesh.userData.baseY + Math.sin(this.spinTime * 2.5 + c.mesh.position.x) * 0.07;
       if (c.mesh.position.distanceTo(playerPos) < 1.5) {
         c.taken = true;
         c.mesh.visible = false;

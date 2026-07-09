@@ -16,7 +16,7 @@
  * for the chunky PS2 look, and cheap canvas textures for deck art.
  */
 import * as THREE from 'three';
-import { CustomizationState, bodyTypeDef, type BoardId } from './CustomizationState';
+import { CustomizationState, type BoardId } from './CustomizationState';
 
 export interface CharacterRig {
   root: THREE.Group;
@@ -29,6 +29,8 @@ export interface CharacterRig {
   /** local-space point behind the board where trails spawn */
   trailAnchor: THREE.Object3D;
   height: number;
+  /** SKATE BURGER: the grow-with-toppings stack (see BurgerStack) */
+  stack?: BurgerStack;
   dispose(): void;
 }
 
@@ -511,8 +513,342 @@ function buildAccessory(
 }
 
 /* ------------------------------------------------------------------ */
+/* SKATE BURGER — the star of the show                                 */
+/*                                                                     */
+/* The burger is a living sandwich: bottom bun + patty are permanent,  */
+/* mystery-box toppings stack between them and the top bun, and each   */
+/* layer is chained to the one below with a little spring sim so the   */
+/* tower sways, whips and wobbles with the skating. Wipe out (bonk)    */
+/* and every collected layer detaches into physics debris — you're     */
+/* back to a basic bun-and-patty.                                      */
+/* ------------------------------------------------------------------ */
+
+export interface ToppingDef {
+  id: string;
+  label: string;
+  emoji: string;
+  h: number; // layer thickness the stack grows by
+  build(): THREE.Group;
+}
+
+/** A flat layer disc with its base at y=0. */
+function disc(r: number, h: number, color: number, seg = 14): THREE.Group {
+  const g = new THREE.Group();
+  const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg), lambert(color)));
+  m.position.y = h / 2;
+  g.add(m);
+  return g;
+}
+
+const TOPPINGS: ToppingDef[] = [
+  { id: 'patty', label: 'Patty', emoji: '🥩', h: 0.13, build: () => disc(0.48, 0.13, 0x7a4426) },
+  {
+    id: 'cheese', label: 'Cheese', emoji: '🧀', h: 0.06,
+    build: () => {
+      const g = new THREE.Group();
+      const slice = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.05, 0.78), lambert(0xf9c440)));
+      slice.position.y = 0.025;
+      slice.rotation.y = Math.PI / 4; // corners poke out past the bun
+      g.add(slice);
+      return g;
+    },
+  },
+  {
+    id: 'lettuce', label: 'Lettuce', emoji: '🥬', h: 0.08,
+    build: () => {
+      const g = new THREE.Group();
+      const leaf = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.56, 12, 7), lambert(0x77c04b)));
+      leaf.scale.y = 0.16; // ruffly squashed sphere
+      leaf.position.y = 0.05;
+      g.add(leaf);
+      return g;
+    },
+  },
+  { id: 'tomato', label: 'Tomato', emoji: '🍅', h: 0.07, build: () => disc(0.44, 0.07, 0xd8402f) },
+  {
+    id: 'pickle', label: 'Pickles', emoji: '🥒', h: 0.07,
+    build: () => {
+      const g = new THREE.Group();
+      for (const [px, pz] of [[0.2, 0.1], [-0.2, 0.14], [0.02, -0.22]] as const) {
+        const p = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 10), lambert(0x5f8f3a)));
+        p.position.set(px, 0.03, pz);
+        g.add(p);
+      }
+      return g;
+    },
+  },
+  {
+    id: 'onion', label: 'Onion', emoji: '🧅', h: 0.05,
+    build: () => {
+      const g = new THREE.Group();
+      for (const [r, px, pz] of [[0.24, 0.12, 0.1], [0.17, -0.18, -0.08]] as const) {
+        const ring = shadowed(new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 6, 14), lambert(0xe9dff2)));
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(px, 0.035, pz);
+        g.add(ring);
+      }
+      return g;
+    },
+  },
+  {
+    id: 'bacon', label: 'Bacon', emoji: '🥓', h: 0.05,
+    build: () => {
+      const g = new THREE.Group();
+      for (const [pz, rot] of [[0.14, 0.08], [-0.14, -0.06]] as const) {
+        const strip = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.22), lambert(0xa23b28)));
+        strip.position.set(0, 0.025, pz);
+        strip.rotation.z = rot;
+        g.add(strip);
+      }
+      return g;
+    },
+  },
+  { id: 'bun', label: 'Extra Bun', emoji: '🍞', h: 0.14, build: () => disc(0.5, 0.14, 0xe0a04e) },
+];
+
+interface BurgerParts {
+  group: THREE.Group;
+  topBun: THREE.Group;
+  baseTop: number; // y of the base patty's top face (first topping sits here)
+  topAnchor: THREE.Vector3; // hat anchor, LOCAL to topBun
+  eyeAnchor: THREE.Vector3; // sunglasses anchor, LOCAL to topBun
+}
+
+function buildBurgerBody(): BurgerParts {
+  const g = new THREE.Group();
+
+  // Bottom bun (heel) + the permanent base patty.
+  const heel = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.45, 0.2, 14), lambert(0xc98a3e)));
+  heel.position.y = 0.1;
+  g.add(heel);
+  const patty = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.13, 14), lambert(0x7a4426)));
+  patty.position.y = 0.265;
+  g.add(patty);
+  const baseTop = 0.33;
+
+  // Top bun: sesame dome with the googly eyes — it rides the stack up.
+  const topBun = new THREE.Group();
+  const dome = shadowed(new THREE.Mesh(
+    new THREE.SphereGeometry(0.52, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    lambert(0xe0a04e),
+  ));
+  dome.scale.y = 0.62;
+  topBun.add(dome);
+  const seedMat = lambert(0xf7ecd2);
+  const seedGeo = new THREE.SphereGeometry(0.035, 5, 4);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + (i % 2) * 0.4;
+    const r = 0.18 + (i % 3) * 0.11;
+    const seed = new THREE.Mesh(seedGeo, seedMat);
+    seed.position.set(Math.cos(a) * r, Math.sqrt(Math.max(0, 0.52 * 0.52 - r * r)) * 0.62, Math.sin(a) * r);
+    topBun.add(seed);
+  }
+  addEyes(topBun, 0.16, 0.44, 0.14);
+  topBun.position.y = baseTop;
+  g.add(topBun);
+
+  return {
+    group: g,
+    topBun,
+    baseTop,
+    topAnchor: new THREE.Vector3(0, 0.34, 0),
+    eyeAnchor: new THREE.Vector3(0, 0.16, 0.42),
+  };
+}
+
+interface StackLayer {
+  grp: THREE.Group;
+  def: ToppingDef;
+  off: THREE.Vector2; // horizontal sway offset relative to the layer below
+  vel: THREE.Vector2;
+  pop: number; // 0→1 scale-in when freshly collected
+}
+
+interface Debris {
+  obj: THREE.Object3D;
+  vel: THREE.Vector3;
+  spin: THREE.Vector3;
+  t: number;
+  mats: THREE.MeshLambertMaterial[];
+}
+
+const DEBRIS_LIFE = 1.4;
+
+export class BurgerStack {
+  private layers: StackLayer[] = [];
+  private debris: Debris[] = [];
+  private prevVel = new THREE.Vector3();
+
+  constructor(
+    private parts: BurgerParts,
+    private root: THREE.Group, // rig root — debris reparents to its parent (the scene)
+    private onHeight: (h: number) => void,
+  ) {}
+
+  /** Stack height in layers, counting the base patty. */
+  get count(): number {
+    return this.layers.length + 1;
+  }
+
+  addRandomTopping(): ToppingDef {
+    const def = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];
+    const grp = def.build();
+    grp.scale.setScalar(0.01); // pops in via `pop`
+    this.parts.group.add(grp);
+    this.layers.push({ grp, def, off: new THREE.Vector2(), vel: new THREE.Vector2(), pop: 0 });
+    this.reportHeight();
+    return def;
+  }
+
+  /** WIPEOUT: every collected layer detaches and flies; back to bun+patty. */
+  wipeout(): number {
+    const n = this.layers.length;
+    if (n === 0) return 0;
+    const parent = this.root.parent;
+    for (const l of this.layers) {
+      if (!parent) {
+        l.grp.removeFromParent();
+        continue;
+      }
+      const pos = l.grp.getWorldPosition(new THREE.Vector3());
+      const quat = l.grp.getWorldQuaternion(new THREE.Quaternion());
+      parent.add(l.grp);
+      l.grp.position.copy(pos);
+      l.grp.quaternion.copy(quat);
+      l.grp.scale.setScalar(1);
+      const mats: THREE.MeshLambertMaterial[] = [];
+      l.grp.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) {
+          o.material.transparent = true;
+          mats.push(o.material);
+        }
+      });
+      const a = Math.random() * Math.PI * 2;
+      this.debris.push({
+        obj: l.grp,
+        vel: new THREE.Vector3(Math.cos(a) * (2 + Math.random() * 4), 5 + Math.random() * 4, Math.sin(a) * (2 + Math.random() * 4)),
+        spin: new THREE.Vector3((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9),
+        t: 0,
+        mats,
+      });
+    }
+    this.layers = [];
+    this.reportHeight();
+    return n;
+  }
+
+  /**
+   * Per-frame sim. Each layer springs toward the layer below and gets
+   * shoved by the rider's acceleration (rotated into local space), so the
+   * tower lags, whips and settles like it's actually stacked up there.
+   */
+  update(dt: number, worldVel: THREE.Vector3, yaw: number): void {
+    if (dt <= 0) return;
+
+    // Rider acceleration → local space shove (skip teleport spikes).
+    let ax = (worldVel.x - this.prevVel.x) / dt;
+    let az = (worldVel.z - this.prevVel.z) / dt;
+    this.prevVel.copy(worldVel);
+    const amag = Math.hypot(ax, az);
+    if (amag > 80) { ax = 0; az = 0; } // respawn/teleport, not skating
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    const lx = ax * cos - az * sin;
+    const lz = ax * sin + az * cos;
+
+    // Chain sim, bottom → top.
+    let belowX = 0, belowY = 0;
+    let y = this.parts.baseTop;
+    for (let i = 0; i < this.layers.length; i++) {
+      const l = this.layers[i];
+      l.pop = Math.min(1, l.pop + dt * 6);
+      const K = 55, D = 9, R = 0.012 * (1 + i * 0.35);
+      l.vel.x += ((belowX - l.off.x) * K - l.vel.x * D) * dt - lx * R;
+      l.vel.y += ((belowY - l.off.y) * K - l.vel.y * D) * dt - lz * R;
+      l.off.x += l.vel.x * dt;
+      l.off.y += l.vel.y * dt;
+      const maxLean = Math.min(0.5, 0.05 + i * 0.04);
+      if (l.off.length() > maxLean) l.off.setLength(maxLean);
+
+      l.grp.position.set(l.off.x, y, l.off.y);
+      l.grp.rotation.z = -(l.off.x - belowX) * 1.1;
+      l.grp.rotation.x = (l.off.y - belowY) * 1.1;
+      l.grp.scale.setScalar(0.2 + 0.8 * l.pop);
+
+      belowX = l.off.x;
+      belowY = l.off.y;
+      y += l.def.h;
+    }
+
+    // Top bun rides the top of the chain (smoothed so it plops, not snaps).
+    const tb = this.parts.topBun;
+    tb.position.y = THREE.MathUtils.damp(tb.position.y, y, 12, dt);
+    tb.position.x = belowX;
+    tb.position.z = belowY;
+    tb.rotation.z = -belowX * 0.7;
+    tb.rotation.x = belowY * 0.7;
+
+    // Flying wipeout debris.
+    for (let i = this.debris.length - 1; i >= 0; i--) {
+      const d = this.debris[i];
+      d.t += dt;
+      d.vel.y -= 22 * dt;
+      d.obj.position.addScaledVector(d.vel, dt);
+      d.obj.rotation.x += d.spin.x * dt;
+      d.obj.rotation.y += d.spin.y * dt;
+      d.obj.rotation.z += d.spin.z * dt;
+      const fade = THREE.MathUtils.clamp((DEBRIS_LIFE - d.t) / 0.4, 0, 1);
+      for (const m of d.mats) m.opacity = fade;
+      if (d.t >= DEBRIS_LIFE) {
+        this.disposeDebris(d);
+        this.debris.splice(i, 1);
+      }
+    }
+  }
+
+  private disposeDebris(d: Debris): void {
+    d.obj.removeFromParent();
+    d.obj.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
+  }
+
+  /** Called from rig.dispose — clears any debris still airborne. */
+  disposeAll(): void {
+    for (const d of this.debris) this.disposeDebris(d);
+    this.debris = [];
+  }
+
+  private reportHeight(): void {
+    let y = this.parts.baseTop;
+    for (const l of this.layers) y += l.def.h;
+    this.onHeight(0.16 + y + 0.34); // deck offset + stack + top-bun dome
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Assembly                                                            */
 /* ------------------------------------------------------------------ */
+
+/** Hidden for the Skate Burger era — the classic crew, kept for later. */
+export function buildLegacyBody(state: CustomizationState): BodyBuild {
+  switch (state.bodyType) {
+    case 'tube':
+      return buildTubeBody(state.bodyColor);
+    case 'ducky':
+      return buildDuckyBody(state.bodyColor);
+    case 'finger':
+      return buildFingerBody(state.bodyColor);
+    case 'teddy':
+      return buildTeddyBody(state.bodyColor);
+    case 'goat':
+      return buildGoatBody(state.bodyColor);
+    default:
+      return buildConeBody(state.bodyColor);
+  }
+}
 
 export function buildCharacter(state: CustomizationState): CharacterRig {
   const root = new THREE.Group();
@@ -528,39 +864,20 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
   body.position.y = 0.16;
   tilt.add(body);
 
-  let build: BodyBuild;
-  switch (state.bodyType) {
-    case 'tube':
-      build = buildTubeBody(state.bodyColor);
-      break;
-    case 'ducky':
-      build = buildDuckyBody(state.bodyColor);
-      break;
-    case 'finger':
-      build = buildFingerBody(state.bodyColor);
-      break;
-    case 'teddy':
-      build = buildTeddyBody(state.bodyColor);
-      break;
-    case 'goat':
-      build = buildGoatBody(state.bodyColor);
-      break;
-    default:
-      build = buildConeBody(state.bodyColor);
-  }
-  body.add(build.group);
+  // SKATE BURGER era: every skater is the Burger (see buildLegacyBody for
+  // the hidden cone crew). Hats/sunglasses ride the top bun up the stack.
+  const burger = buildBurgerBody();
+  body.add(burger.group);
 
   const spinners: THREE.Object3D[] = [];
-  const acc = buildAccessory(state.accessory, build.topAnchor, build.eyeAnchor, spinners);
-  if (acc) body.add(acc);
+  const acc = buildAccessory(state.accessory, burger.topAnchor, burger.eyeAnchor, spinners);
+  if (acc) burger.topBun.add(acc);
 
   const trailAnchor = new THREE.Object3D();
   trailAnchor.position.set(0, 0.12, -0.65);
   tilt.add(trailAnchor);
 
-  const height = bodyTypeDef(state.bodyType).stats.height;
-
-  return {
+  const rig: CharacterRig = {
     root,
     tilt,
     body,
@@ -568,8 +885,9 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
     wheels,
     spinners,
     trailAnchor,
-    height,
+    height: 0.85,
     dispose() {
+      rig.stack?.disposeAll();
       root.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
@@ -583,4 +901,6 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
       root.removeFromParent();
     },
   };
+  rig.stack = new BurgerStack(burger, root, (h) => (rig.height = h));
+  return rig;
 }
