@@ -105,11 +105,14 @@ export class GameApp {
       onExitToMenu: () => this.setMode('start'),
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
-      onToggleSound: () => this.audio.toggleMuted(),
       onUiClick: () => this.audio.click(),
       getCurrentTrack: () => this.audio.trackId,
       onTrackPicked: (id) => this.audio.selectTrack(id),
-    }, this.audio.muted);
+      getMusicVolume: () => this.audio.musicVolume,
+      setMusicVolume: (v) => this.audio.setMusicVolume(v),
+      getSfxVolume: () => this.audio.sfxVolume,
+      setSfxVolume: (v) => this.audio.setSfxVolume(v),
+    });
 
     // Any customization change rebuilds the preview model instantly.
     this.state.onChange(() => {

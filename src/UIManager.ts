@@ -42,14 +42,17 @@ export interface UICallbacks {
   onExitToMenu(): void;           // results/hud/pause → start
   onPause(): void;
   onResume(): void;
-  /** toggles audio; returns the new muted state */
-  onToggleSound(): boolean;
   /** small click for button presses */
   onUiClick(): void;
   /** the currently-selected music track id */
   getCurrentTrack(): string;
   /** user picked a track in the music player */
   onTrackPicked(id: string): void;
+  /** music / SFX volume, 0..1 */
+  getMusicVolume(): number;
+  setMusicVolume(v: number): void;
+  getSfxVolume(): number;
+  setSfxVolume(v: number): void;
 }
 
 export interface ResultsData {
@@ -100,7 +103,6 @@ export class UIManager {
     private state: CustomizationState,
     private economy: Economy,
     private cb: UICallbacks,
-    private startMuted = false,
   ) {
     this.root = el('div', 'ui-root', container);
     // Belt-and-braces touch detection alongside the CSS pointer:coarse query:
@@ -132,6 +134,16 @@ export class UIManager {
   show(name: ScreenName): void {
     for (const [key, node] of this.screens) node.classList.toggle('hidden', key !== name);
     this.refreshBalances();
+    if (name === 'pause') this.refreshPausePanel();
+  }
+
+  /** Sync the pause panel's now-playing label + volume sliders to live state. */
+  private refreshPausePanel(): void {
+    const id = this.cb.getCurrentTrack();
+    const track = MUSIC_TRACKS.find((t) => t.id === id);
+    this.pauseTrackName.textContent = track ? track.title : '—';
+    this.musicSlider.value = String(this.cb.getMusicVolume());
+    this.sfxSlider.value = String(this.cb.getSfxVolume());
   }
 
   /* ---------------------------------------------------------- */
@@ -375,17 +387,17 @@ export class UIManager {
     const boostTrack = el('div', 'boost-track', boostWrap);
     this.boostBar = el('div', 'boost-fill', boostTrack);
 
+    // Minimal top-right: just two icon buttons. Reset (↺) and Pause (‖).
+    // Audio + music now live in the pause screen, so they're gone from here.
     const topRight = el('div', 'hud-topright', s);
-    const music = el('button', 'btn btn-small hud-btn', topRight, '🎵');
-    music.addEventListener('click', () => this.openMusicPlayer());
-    const sound = el('button', 'btn btn-small hud-btn', topRight, this.startMuted ? '🔇' : '🔊');
-    sound.addEventListener('click', () => {
-      sound.textContent = this.cb.onToggleSound() ? '🔇' : '🔊';
-    });
-    const pause = el('button', 'btn btn-small hud-btn', topRight, '⏸ Pause');
-    pause.addEventListener('click', () => this.cb.onPause());
-    const reset = el('button', 'btn btn-small hud-btn', topRight, '↺ Reset');
+    const reset = el('button', 'hud-icon-btn', topRight);
+    reset.setAttribute('aria-label', 'Reset');
+    el('span', 'icon-reset', reset, '↺');
     reset.addEventListener('click', () => this.cb.onReset());
+    const pause = el('button', 'hud-icon-btn', topRight);
+    pause.setAttribute('aria-label', 'Pause');
+    el('span', 'icon-pause', pause); // two vertical bars drawn in CSS
+    pause.addEventListener('click', () => this.cb.onPause());
 
     this.buildMusicPlayer();
 
@@ -398,16 +410,23 @@ export class UIManager {
 
     // Touch controls — only shown on coarse-pointer devices (see CSS).
     const touch = el('div', 'touch-controls', s);
+
+    // LEFT: a light d-pad — launch (▲, up-and-out off a ramp) on top, steer
+    // (◀ ▶) below. Small + translucent so they stay out of the way.
     const left = el('div', 'touch-cluster touch-left', touch);
-    const btnL = el('button', 'touch-btn', left, '◀');
-    const btnR = el('button', 'touch-btn', left, '▶');
+    const btnLaunch = el('button', 'touch-btn touch-dir touch-launch', left, '▲');
+    const dirRow = el('div', 'touch-dirrow', left);
+    const btnL = el('button', 'touch-btn touch-dir', dirRow, '◀');
+    const btnR = el('button', 'touch-btn touch-dir', dirRow, '▶');
+
+    // RIGHT: the two primary actions, each an icon with a subtle label.
     const right = el('div', 'touch-cluster touch-right', touch);
-    const btnBoost = el('button', 'touch-btn touch-boost', right, '🔥');
-    // Jump + launch stack on the right: launch (eject off a curved ramp)
-    // sits just above the big jump button so both fall under the thumb.
-    const jumpStack = el('div', 'touch-jumpstack', right);
-    const btnLaunch = el('button', 'touch-btn touch-launch', jumpStack, '⤴');
-    const btnJump = el('button', 'touch-btn touch-jump', jumpStack, '⬆');
+    const btnBoost = el('button', 'touch-btn touch-boost touch-labeled', right);
+    el('span', 'tb-icon', btnBoost, '🔥');
+    el('span', 'tb-label', btnBoost, 'boost');
+    const btnJump = el('button', 'touch-btn touch-jump touch-labeled', right);
+    el('span', 'tb-icon', btnJump, '▲');
+    el('span', 'tb-label', btnJump, 'jump');
 
     const bindHold = (btn: HTMLElement, down: () => void, up: () => void) => {
       const start = (e: Event) => {
@@ -472,6 +491,7 @@ export class UIManager {
       card.addEventListener('click', () => {
         this.cb.onTrackPicked(track.id);
         this.highlightTrack(track.id);
+        this.pauseTrackName.textContent = track.title;
       });
       this.musicCards.set(track.id, card);
     });
@@ -586,6 +606,10 @@ export class UIManager {
   /* Pause                                                       */
   /* ---------------------------------------------------------- */
 
+  private pauseTrackName!: HTMLElement;
+  private musicSlider!: HTMLInputElement;
+  private sfxSlider!: HTMLInputElement;
+
   private buildPause(): void {
     const s = el('div', 'screen screen-pause hidden', this.root);
     this.screens.set('pause', s);
@@ -593,8 +617,40 @@ export class UIManager {
     const card = el('div', 'title-card pause-card', s);
     el('h2', 'game-title small', card, 'PAUSED');
 
-    // Full move list — the trick cheat-sheet (THPS-style verb grammar).
-    const hints = el('div', 'controls-hint', card);
+    // --- Music player: now-playing + open the jukebox grid ---
+    const music = el('div', 'pause-music', card);
+    const np = el('div', 'pause-nowplaying', music);
+    el('span', 'pause-note', np, '🎵');
+    this.pauseTrackName = el('span', 'pause-trackname', np, '');
+    const change = el('button', 'btn btn-small', music, 'Tracks');
+    change.addEventListener('click', () => this.openMusicPlayer());
+
+    // --- Volume sliders ---
+    const volWrap = el('div', 'pause-vols', card);
+    const slider = (label: string, get: () => number, set: (v: number) => void): HTMLInputElement => {
+      const rowEl = el('div', 'vol-row', volWrap);
+      el('span', 'vol-label', rowEl, label);
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '1';
+      input.step = '0.01';
+      input.value = String(get());
+      input.className = 'vol-slider';
+      input.addEventListener('input', () => set(parseFloat(input.value)));
+      rowEl.appendChild(input);
+      return input;
+    };
+    this.musicSlider = slider('Music', () => this.cb.getMusicVolume(), (v) => this.cb.setMusicVolume(v));
+    this.sfxSlider = slider('Sound', () => this.cb.getSfxVolume(), (v) => this.cb.setSfxVolume(v));
+
+    // --- Controls: tucked behind a toggle so the pause card stays clean ---
+    const ctrlToggle = el('button', 'btn btn-small pause-controls-toggle', card, '🎮 Controls');
+    const hints = el('div', 'controls-hint hidden', card);
+    ctrlToggle.addEventListener('click', () => {
+      const open = hints.classList.toggle('hidden');
+      ctrlToggle.textContent = open ? '🎮 Controls' : '🎮 Hide controls';
+    });
     const section = (title: string) => el('div', 'hint-section', hints, title);
     const hint = (action: string, how: string) => {
       const row = el('div', 'hint-row', hints);

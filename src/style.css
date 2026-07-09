@@ -688,16 +688,47 @@ canvas.game-canvas {
   gap: 8px;
 }
 
-/* Narrow screens: stack the buttons so they don't crowd the timer. */
-@media (max-width: 520px) {
-  .hud-topright {
-    flex-direction: column;
-    align-items: flex-end;
-  }
+/* Minimal translucent icon buttons (reset + pause). */
+.hud-icon-btn {
+  pointer-events: auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 251, 242, 0.55);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.16);
+  transition: transform 0.06s, box-shadow 0.06s;
 }
 
-.hud-btn {
-  pointer-events: auto;
+.hud-icon-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
+}
+
+.icon-reset {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Two vertical bars = pause. */
+.icon-pause {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-pause::before,
+.icon-pause::after {
+  content: '';
+  width: 4px;
+  height: 15px;
+  border-radius: 2px;
+  background: currentColor;
 }
 
 /* ---------- music player (jukebox) ---------- */
@@ -991,21 +1022,23 @@ body.has-touch .touch-controls {
   pointer-events: auto;
 }
 
+/* LEFT: light d-pad — launch (▲) on top, steer (◀ ▶) below. */
 .touch-left {
   left: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.touch-dirrow {
+  display: flex;
+  gap: 10px;
 }
 
 .touch-right {
   right: 16px;
   align-items: flex-end;
-}
-
-/* Launch stacks directly above the jump button (thumb reaches both). */
-.touch-jumpstack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
+  gap: 18px;
 }
 
 .touch-btn {
@@ -1026,23 +1059,62 @@ body.has-touch .touch-controls {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
 }
 
+/* Left d-pad buttons: smaller + translucent so they recede. */
+.touch-dir {
+  width: 54px;
+  height: 54px;
+  font-size: 19px;
+  color: rgba(33, 40, 58, 0.9);
+  background: rgba(255, 251, 242, 0.4);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.14);
+}
+
+.touch-dir:active {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.14);
+}
+
+/* Launch (up) shares the d-pad look with a faint sky tint. */
+.touch-launch {
+  background: rgba(110, 198, 255, 0.42);
+  color: #fff;
+}
+
+/* RIGHT: icon stacked over a subtle label. */
+.touch-labeled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 22px;
+}
+
+.tb-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.tb-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  opacity: 0.6;
+}
+
 .touch-jump {
-  width: 84px;
-  height: 84px;
+  width: 88px;
+  height: 88px;
   background: var(--orange);
   color: #fff;
   box-shadow: 0 5px 0 var(--orange-dark);
 }
 
-/* Launch (vert eject) — sky blue to read as "up and out". */
-.touch-launch {
-  background: var(--sky);
-  color: #fff;
-  box-shadow: 0 5px 0 #3f9fd6;
+.touch-jump .tb-icon {
+  font-size: 32px;
 }
 
-.touch-launch:active {
-  box-shadow: 0 2px 0 #3f9fd6;
+.touch-jump .tb-label {
+  opacity: 0.85;
 }
 
 /* ---------- pause ---------- */
@@ -1056,6 +1128,95 @@ body.has-touch .touch-controls {
   max-width: min(92vw, 440px);
   max-height: 86vh;
   overflow-y: auto;
+}
+
+/* Music player row */
+.pause-music {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 14px;
+  padding: 8px 10px;
+  margin: 6px 0 12px;
+}
+
+.pause-nowplaying {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pause-note {
+  font-size: 18px;
+}
+
+.pause-trackname {
+  font-weight: 900;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Volume sliders */
+.pause-vols {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vol-label {
+  width: 52px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 900;
+  opacity: 0.75;
+}
+
+.vol-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+  outline: none;
+}
+
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 2px 0 var(--orange-dark);
+  cursor: pointer;
+}
+
+.vol-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--orange);
+  cursor: pointer;
+}
+
+.pause-controls-toggle {
+  margin-bottom: 10px;
 }
 
 .hint-section {

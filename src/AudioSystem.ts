@@ -58,8 +58,15 @@ export const MUSIC_TRACKS: MusicTrack[] = TRACK_FILES.map((f) => ({
   file: `audio/${f}`,
 }));
 
-const MUTE_KEY = 'coneZoneMuted';
+const MUSIC_VOL_KEY = 'coneZoneMusicVol';
+const SFX_VOL_KEY = 'coneZoneSfxVol';
 const TRACK_KEY = 'coneZoneTrack';
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+function loadVol(key: string, dflt: number): number {
+  const v = parseFloat(localStorage.getItem(key) ?? '');
+  return Number.isFinite(v) ? clamp01(v) : dflt;
+}
 
 export class AudioSystem {
   private ctx: AudioContext | null = null;
@@ -70,10 +77,13 @@ export class AudioSystem {
   private musicStarted = false;
   private currentTrackId: string;
   private trackListeners = new Set<(id: string) => void>();
-  muted: boolean;
+  /** 0..1 independent volumes, persisted; SFX rides the master gain. */
+  musicVolume: number;
+  sfxVolume: number;
 
   constructor() {
-    this.muted = localStorage.getItem(MUTE_KEY) === '1';
+    this.musicVolume = loadVol(MUSIC_VOL_KEY, 0.35);
+    this.sfxVolume = loadVol(SFX_VOL_KEY, 0.8);
     // Restore the last-picked track, or fall back to a random one.
     const saved = localStorage.getItem(TRACK_KEY);
     const savedValid = saved && MUSIC_TRACKS.some((t) => t.id === saved);
@@ -81,22 +91,25 @@ export class AudioSystem {
       ? (saved as string)
       : MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)].id;
     this.music.loop = true;
-    this.music.volume = 0.35;
-    this.music.muted = this.muted;
+    this.music.volume = this.musicVolume;
     // Autoplay policy: the context can only start after a user gesture.
     const unlock = () => this.ensureCtx();
     window.addEventListener('pointerdown', unlock, { once: true, passive: true });
     window.addEventListener('keydown', unlock, { once: true });
   }
 
-  toggleMuted(): boolean {
-    this.muted = !this.muted;
-    localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
-    this.music.muted = this.muted;
+  setMusicVolume(v: number): void {
+    this.musicVolume = clamp01(v);
+    localStorage.setItem(MUSIC_VOL_KEY, String(this.musicVolume));
+    this.music.volume = this.musicVolume;
+  }
+
+  setSfxVolume(v: number): void {
+    this.sfxVolume = clamp01(v);
+    localStorage.setItem(SFX_VOL_KEY, String(this.sfxVolume));
     if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(this.muted ? 0 : 1, this.ctx.currentTime, 0.02);
+      this.master.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.02);
     }
-    return this.muted;
   }
 
   private ensureCtx(): AudioContext | null {
@@ -104,7 +117,7 @@ export class AudioSystem {
       try {
         this.ctx = new AudioContext();
         this.master = this.ctx.createGain();
-        this.master.gain.value = this.muted ? 0 : 1;
+        this.master.gain.value = this.sfxVolume;
         this.master.connect(this.ctx.destination);
         // Shared 1s white-noise buffer for all noise-based effects.
         const len = this.ctx.sampleRate;
