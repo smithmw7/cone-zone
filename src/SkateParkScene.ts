@@ -117,6 +117,98 @@ function makeQuarterPipeGeometry(width: number, h: number, deckDepth: number): {
   return { geo, lipY: h, lipZ: deckDepth };
 }
 
+/* ------------------------- surface textures ------------------------- */
+// Both textures are near-white LUMINANCE maps (detail in the 0.7–1.0 range)
+// so they MULTIPLY over each theme's base color: the theme supplies the hue
+// (warm wood / cool concrete), the texture supplies the grain and grime.
+// They're sampled triplanar in world space (see applyTriplanar), so grain
+// scale stays consistent across every module regardless of its UVs.
+
+function texFromCanvas(draw: (ctx: CanvasRenderingContext2D, s: number) => void): THREE.CanvasTexture {
+  const s = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  draw(c.getContext('2d')!, s);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/** Plywood: vertical grain streaks + darker plank seams. */
+function makeWoodTexture(): THREE.CanvasTexture {
+  return texFromCanvas((ctx, s) => {
+    ctx.fillStyle = '#ececec';
+    ctx.fillRect(0, 0, s, s);
+    // Fine grain — many faint vertical wavy strokes.
+    for (let i = 0; i < 140; i++) {
+      const x = Math.random() * s;
+      const shade = 150 + Math.random() * 70; // 0.59–0.86
+      ctx.strokeStyle = `rgba(${shade | 0},${(shade * 0.9) | 0},${(shade * 0.72) | 0},0.25)`;
+      ctx.lineWidth = 0.6 + Math.random() * 1.4;
+      ctx.beginPath();
+      let y = 0;
+      ctx.moveTo(x, 0);
+      while (y < s) {
+        y += 8 + Math.random() * 14;
+        ctx.lineTo(x + (Math.random() - 0.5) * 3, y);
+      }
+      ctx.stroke();
+    }
+    // Plank seams every 64px (tileable) — crisp darker grooves.
+    ctx.strokeStyle = 'rgba(120,96,64,0.5)';
+    ctx.lineWidth = 2;
+    for (let x = 0; x <= s; x += 64) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, s);
+      ctx.stroke();
+    }
+  });
+}
+
+/** Concrete: mottled speckle + a couple of faint hairline cracks. */
+function makeConcreteTexture(): THREE.CanvasTexture {
+  return texFromCanvas((ctx, s) => {
+    ctx.fillStyle = '#e9e9ea';
+    ctx.fillRect(0, 0, s, s);
+    // Broad soft blotches for uneven pour.
+    for (let i = 0; i < 26; i++) {
+      const x = Math.random() * s, y = Math.random() * s;
+      const r = 18 + Math.random() * 46;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const dark = Math.random() < 0.5;
+      g.addColorStop(0, dark ? 'rgba(150,150,155,0.16)' : 'rgba(255,255,255,0.16)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Fine aggregate speckle.
+    for (let i = 0; i < 2600; i++) {
+      const v = Math.random() < 0.5 ? 165 + Math.random() * 40 : 235 + Math.random() * 20;
+      ctx.fillStyle = `rgba(${v | 0},${v | 0},${(v * 0.99) | 0},0.5)`;
+      ctx.fillRect(Math.random() * s, Math.random() * s, 1, 1);
+    }
+    // A few hairline cracks.
+    ctx.strokeStyle = 'rgba(120,120,124,0.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      let x = Math.random() * s, y = Math.random() * s;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 10; k++) {
+        x += (Math.random() - 0.5) * 40;
+        y += (Math.random() - 0.5) * 40;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  });
+}
+
 export class SkateParkScene {
   scene = new THREE.Scene();
   rails: RailSegment[] = [];
@@ -132,6 +224,8 @@ export class SkateParkScene {
   private elapsed = 0;
   private wedgeGeoCache = new Map<string, THREE.BufferGeometry>();
   private matCache = new Map<number, THREE.MeshLambertMaterial>();
+  private woodTex?: THREE.CanvasTexture;
+  private concreteTex?: THREE.CanvasTexture;
   private theme: LevelTheme;
 
   constructor(private physics: PhysicsWorld, readonly config: LevelConfig) {
@@ -146,14 +240,83 @@ export class SkateParkScene {
     config.build(this);
   }
 
-  /** Cached flat-shaded material per color (levels reuse a small palette). */
+  /**
+   * Cached flat-shaded material per color (levels reuse a small palette).
+   * Ramp colors get a WOOD grain, ground colors a CONCRETE finish — applied
+   * as a world-space triplanar overlay so the two read as clearly different
+   * materials, not just two shades of tan.
+   */
   mat(color: number): THREE.MeshLambertMaterial {
     let m = this.matCache.get(color);
     if (!m) {
       m = new THREE.MeshLambertMaterial({ color, flatShading: true });
+      const surf = this.surfaceFor(color);
+      if (surf === 'wood') this.applyTriplanar(m, this.woodTexture(), 0.5);
+      else if (surf === 'concrete') this.applyTriplanar(m, this.concreteTexture(), 0.32);
       this.matCache.set(color, m);
     }
     return m;
+  }
+
+  /** Which surface finish a theme color represents (ramps=wood, floor=concrete). */
+  private surfaceFor(color: number): 'wood' | 'concrete' | null {
+    const t = this.theme;
+    if (color === t.ramp || color === t.rampAlt) return 'wood';
+    if (color === t.ground || color === t.groundDark) return 'concrete';
+    return null;
+  }
+
+  private woodTexture(): THREE.CanvasTexture {
+    return (this.woodTex ??= makeWoodTexture());
+  }
+
+  private concreteTexture(): THREE.CanvasTexture {
+    return (this.concreteTex ??= makeConcreteTexture());
+  }
+
+  /**
+   * Overlay a repeating texture sampled in WORLD space on three axes and
+   * blended by the surface normal — no UVs required, so it works uniformly
+   * on boxes, UV-less wedges, lathes and extrudes at a constant grain scale.
+   * The texture MULTIPLIES the base color (see the texture generators).
+   */
+  private applyTriplanar(m: THREE.MeshLambertMaterial, map: THREE.CanvasTexture, scale: number): void {
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uTriMap = { value: map };
+      shader.uniforms.uTriScale = { value: scale };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;')
+        .replace(
+          '#include <beginnormal_vertex>',
+          '#include <beginnormal_vertex>\n  vTriNrm = mat3(modelMatrix) * objectNormal;',
+        )
+        .replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\n  vTriPos = (modelMatrix * vec4(transformed, 1.0)).xyz;',
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+uniform sampler2D uTriMap;
+uniform float uTriScale;
+varying vec3 vTriPos;
+varying vec3 vTriNrm;
+vec3 triplanarColor() {
+  vec3 n = normalize(vTriNrm);
+  vec3 bw = pow(abs(n), vec3(4.0));
+  bw /= (bw.x + bw.y + bw.z);
+  vec3 cx = texture2D(uTriMap, vTriPos.zy * uTriScale).rgb;
+  vec3 cy = texture2D(uTriMap, vTriPos.xz * uTriScale).rgb;
+  vec3 cz = texture2D(uTriMap, vTriPos.xy * uTriScale).rgb;
+  return cx * bw.x + cy * bw.y + cz * bw.z;
+}`,
+        )
+        .replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb *= triplanarColor();');
+    };
+    // All triplanar mats share identical shader code (only uniforms differ),
+    // so they can share one compiled program.
+    m.customProgramCacheKey = () => 'triplanar';
   }
 
   /* ================================================================ */
@@ -325,6 +488,7 @@ export class SkateParkScene {
     pts.push(new THREE.Vector2(rBase, 0));
     const geo = new THREE.LatheGeometry(pts, 28);
     const bowlMat = new THREE.MeshLambertMaterial({ color: this.theme.rampAlt, flatShading: true, side: THREE.DoubleSide });
+    this.applyTriplanar(bowlMat, this.woodTexture(), 0.5);
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.add(this.solidMesh(geo, bowlMat, 'trimesh'));

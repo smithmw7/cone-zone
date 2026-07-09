@@ -240,7 +240,8 @@ export const LEVELS: LevelConfig[] = [
     bounds: { x: 67.5, z: 47.5 },
     spawn: { x: 0, z: 40, yaw: Math.PI },
     theme: {
-      ground: 0xcfc5b2, groundDark: 0xb4a892, ramp: 0xd8cdb8, rampAlt: 0xc9b9a4,
+      // Cool grey concrete floor vs warm plywood ramps — clear contrast.
+      ground: 0xbdbfc4, groundDark: 0x9a9ca4, ramp: 0xcb9f61, rampAlt: 0xb98a49,
       surround: 0x6cbf5a, rail: 0xf0c93d, treeCrown: 0x4fae52, treeTrunk: 0x7a5230,
     },
     build: buildConePark,
@@ -253,7 +254,8 @@ export const LEVELS: LevelConfig[] = [
     bounds: { x: 95, z: 65 },
     spawn: { x: 0, z: 56, yaw: Math.PI },
     theme: {
-      ground: 0xd8c49a, groundDark: 0xbfa87e, ramp: 0xcfa877, rampAlt: 0xc09468,
+      // Pale sun-bleached concrete pad vs richer wood ramps.
+      ground: 0xcbc6ba, groundDark: 0xa8a091, ramp: 0xc0813f, rampAlt: 0xa96e30,
       surround: 0xc47a4a, rail: 0xffb347, treeCrown: 0x7a9e4e, treeTrunk: 0x8a5a30,
       skyPresets: ['Noon', 'Sunset', 'Dawn'],
     },
@@ -268,7 +270,8 @@ export const LEVELS: LevelConfig[] = [
     spawn: { x: 0, z: 56, yaw: Math.PI },
     physics: { speedMul: 1.2, turnMul: 0.85 }, // waxed base: faster, driftier
     theme: {
-      ground: 0xeef3f8, groundDark: 0xd4dfe8, ramp: 0xe4ecf3, rampAlt: 0xd9e4ee,
+      // Snow-white floor vs warm wooden ramps — pops hard against the powder.
+      ground: 0xeef3f8, groundDark: 0xd4dfe8, ramp: 0xbf9560, rampAlt: 0xa87f4b,
       surround: 0xe6eef5, rail: 0x7fd8ff, treeCrown: 0x2e5e46, treeTrunk: 0x5a4030,
       snowPines: true,
       skyPresets: ['Alpine', 'Noon', 'Minty', 'Dusk'],
