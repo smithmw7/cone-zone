@@ -14,24 +14,30 @@ import type { LevelConfig, SkateParkScene } from './SkateParkScene';
 /* ================================================================== */
 
 function buildConePark(p: SkateParkScene): void {
-  // North wall: quarter pipes at all 4 heights.
-  p.moduleQuarterPipe(-44, -48.4, 0, 2, 20);
-  p.moduleQuarterPipe(-10, -48.4, 0, 3, 24);
-  p.moduleQuarterPipe(16, -48.4, 0, 4, 16);
-  p.moduleQuarterPipe(34, -48.4, 0, 1, 12);
-  p.moduleBank(52, -48.4, 0, 4, 12);
+  // Perimeter rule: every edge element is a QUARTER PIPE (banks against a
+  // wall just ram you into it), and every back sits FLUSH on the wall's
+  // inner face (x ±69 / z ±49) — no dead gap behind the ramps.
+
+  // North wall: a near-continuous quarter-pipe line at varied heights.
+  p.moduleQuarterPipe(-62, -49, 0, 2, 12);
+  p.moduleQuarterPipe(-44, -49, 0, 2, 20);
+  p.moduleQuarterPipe(-10, -49, 0, 3, 24);
+  p.moduleQuarterPipe(16, -49, 0, 4, 16);
+  p.moduleQuarterPipe(34, -49, 0, 1, 12);
+  p.moduleQuarterPipe(52, -49, 0, 3, 14);
 
   // South wall returns flanking the spawn.
-  p.moduleQuarterPipe(-26, 48.4, Math.PI, 1, 16);
-  p.moduleQuarterPipe(24, 48.4, Math.PI, 2, 16);
-  p.moduleBank(-48, 48.4, Math.PI, 2, 10);
-  p.moduleBank(48, 48.4, Math.PI, 1, 10);
+  p.moduleQuarterPipe(-48, 49, Math.PI, 2, 14);
+  p.moduleQuarterPipe(-26, 49, Math.PI, 1, 16);
+  p.moduleQuarterPipe(24, 49, Math.PI, 2, 16);
+  p.moduleQuarterPipe(48, 49, Math.PI, 2, 14);
 
-  // West: half pipe + wall bank. East: bank + tall QP.
+  // West: half pipe mid-floor + wall QPs. East: two wall QPs.
   p.moduleHalfPipe(-52, 10, 2, 20, 8);
-  p.moduleBank(-68.4, -28, Math.PI / 2, 3, 12);
-  p.moduleBank(68.4, 20, -Math.PI / 2, 2, 14);
-  p.moduleQuarterPipe(68.4, -20, -Math.PI / 2, 3, 14);
+  p.moduleQuarterPipe(-69, -28, Math.PI / 2, 3, 12);
+  p.moduleQuarterPipe(-69, 34, Math.PI / 2, 2, 12);
+  p.moduleQuarterPipe(69, 20, -Math.PI / 2, 2, 14);
+  p.moduleQuarterPipe(69, -20, -Math.PI / 2, 3, 14);
 
   // Center: transition playground.
   p.modulePyramid(0, -2, 2);
@@ -82,22 +88,33 @@ function buildConePark(p: SkateParkScene): void {
 /* ================================================================== */
 
 function buildMegaCanyon(p: SkateParkScene): void {
+  // Perimeter rule: quarter pipes only on the walls, backs flush on the
+  // inner faces (x ±96.5 / z ±66.5) — no bank-into-wall ramps, no gaps.
+
   // North rim: monster transitions (including a 6m vert wall).
-  p.moduleQuarterPipe(-60, -63.4, 0, 4, 24);
-  p.moduleQuarterPipe(-16, -63.4, 0, 6, 28);
-  p.moduleQuarterPipe(24, -63.4, 0, 3, 20);
-  p.moduleBank(58, -63.4, 0, 6, 24);
+  p.moduleQuarterPipe(-88, -66.5, 0, 3, 14);
+  p.moduleQuarterPipe(-60, -66.5, 0, 4, 24);
+  p.moduleQuarterPipe(-16, -66.5, 0, 6, 28);
+  p.moduleQuarterPipe(24, -66.5, 0, 3, 20);
+  p.moduleQuarterPipe(58, -66.5, 0, 4, 24);
+  p.moduleQuarterPipe(84, -66.5, 0, 2, 14);
 
   // South returns.
-  p.moduleQuarterPipe(-40, 63.4, Math.PI, 2, 20);
-  p.moduleQuarterPipe(40, 63.4, Math.PI, 2, 20);
-  p.moduleBank(0, 63.4, Math.PI, 3, 16);
+  p.moduleQuarterPipe(-40, 66.5, Math.PI, 2, 20);
+  p.moduleQuarterPipe(0, 66.5, Math.PI, 3, 20);
+  p.moduleQuarterPipe(40, 66.5, Math.PI, 2, 20);
+  p.moduleQuarterPipe(78, 66.5, Math.PI, 2, 16);
 
   // West mega-air zone: twin h5 kickers face off across a canyon gap.
   p.moduleKicker(-62, -10, Math.PI / 2, 5, 14);
   p.moduleKicker(-34, -10, Math.PI / 2, 5, 14);
-  p.moduleBank(-93.4, 24, Math.PI / 2, 4, 18);
+  p.moduleQuarterPipe(-96.5, 24, Math.PI / 2, 4, 18);
+  p.moduleQuarterPipe(-96.5, -30, Math.PI / 2, 3, 16);
   p.moduleHalfPipe(-58, 42, 3, 24, 10);
+
+  // East wall QPs (the plateau drop corridor stays clear between them).
+  p.moduleQuarterPipe(96.5, 30, -Math.PI / 2, 3, 16);
+  p.moduleQuarterPipe(96.5, -45, -Math.PI / 2, 2, 14);
 
   // Center: mega pyramid + spine + bowls.
   p.modulePyramid(0, 0, 4);
@@ -157,12 +174,14 @@ function buildPowderPeak(p: SkateParkScene): void {
   // The mountain: three full-width terraces descending from the north
   // wall, connected by giant banks. Bombing south = big speed; every
   // terrace edge has kickers for massive drop airs.
-  p.moduleBox(0, -59, 0, 186, 9, 12);          // summit shelf (y top = 9)
-  p.moduleBank(0, -53, 0, 3, 186, 6);          // 9 → 6
-  p.moduleBox(0, -42, 0, 186, 6, 10);          // shelf 2
-  p.moduleBank(0, -37, 0, 3, 186, 3);          // 6 → 3
-  p.moduleBox(0, -26, 0, 186, 3, 12);          // shelf 3
-  p.moduleBank(0, -20, 0, 3, 186, 0);          // 3 → ground
+  // Width 193 spans wall-to-wall (x ±96.5) and the summit shelf reaches
+  // the back wall (z −66.5) — no side/back gaps around the mountain.
+  p.moduleBox(0, -59.75, 0, 193, 9, 13.5);     // summit shelf (y top = 9)
+  p.moduleBank(0, -53, 0, 3, 193, 6);          // 9 → 6
+  p.moduleBox(0, -42, 0, 193, 6, 10);          // shelf 2
+  p.moduleBank(0, -37, 0, 3, 193, 3);          // 6 → 3
+  p.moduleBox(0, -26, 0, 193, 3, 12);          // shelf 3
+  p.moduleBank(0, -20, 0, 3, 193, 0);          // 3 → ground
 
   // Drop-air kickers on the shelves.
   p.moduleKicker(-30, -42, 0, 2, 10, 6);
@@ -198,11 +217,14 @@ function buildPowderPeak(p: SkateParkScene): void {
   // mountain banks — first 20 seconds = jump, climb, drop. That's the loop.
   p.moduleKicker(0, 34, 0, 1, 10);
 
-  // South wall returns to pump back toward the mountain.
-  p.moduleQuarterPipe(-30, 63.4, Math.PI, 2, 20);
-  p.moduleQuarterPipe(30, 63.4, Math.PI, 2, 20);
-  p.moduleBank(-70, 63.4, Math.PI, 2, 12);
-  p.moduleBank(70, 63.4, Math.PI, 2, 12);
+  // South wall returns to pump back toward the mountain — all QPs, flush
+  // on the wall face (z 66.5), plus one wall QP per side in the flats.
+  p.moduleQuarterPipe(-30, 66.5, Math.PI, 2, 20);
+  p.moduleQuarterPipe(30, 66.5, Math.PI, 2, 20);
+  p.moduleQuarterPipe(-70, 66.5, Math.PI, 2, 12);
+  p.moduleQuarterPipe(70, 66.5, Math.PI, 2, 12);
+  p.moduleQuarterPipe(-96.5, 45, Math.PI / 2, 2, 14);
+  p.moduleQuarterPipe(96.5, 16, -Math.PI / 2, 2, 14);
   p.modulePyramid(-26, 14, 2); // moved off the spawn lane
 
   p.placeCollectibles([
