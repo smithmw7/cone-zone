@@ -361,8 +361,11 @@ export class PlayerController {
       if (degAbs >= 85) this.events.onSpinTick(degAbs);
       if (this.grabbing && this.grabTime > 0.25) this.events.onGrabTick(this.grabName, this.grabTime);
 
-      // Try to catch a rail while descending.
-      if (this.vel.y < 1 && this.tryStartGrind(elapsed)) return;
+      // Try to catch a rail while descending — but NOT while we're just
+      // riding a halfpipe transition up and floating back down (vertAir).
+      // That natural pop shouldn't snag the lip; grinds only latch from a
+      // deliberate ollie/jump onto the rail (which clears vertAir).
+      if (this.vel.y < 1 && !this.vertAir && this.tryStartGrind(elapsed)) return;
     }
 
     // Integrate + keep inside the park. Airborne motion is SWEPT (raycast
