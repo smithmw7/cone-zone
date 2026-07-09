@@ -2,7 +2,7 @@
  * GameApp
  * -------
  * Top-level orchestrator. Owns the renderer, the screen state machine
- * (start → select → customize → play → results), the game loop, and the
+ * (start → customize → levels → play → results), the game loop, and the
  * wiring between all the systems:
  *
  *   UIManager           DOM screens + touch input
@@ -30,7 +30,7 @@ import { DebugView } from './DebugView';
 import { Economy } from './Economy';
 import { AudioSystem } from './AudioSystem';
 
-type AppMode = 'start' | 'select' | 'customize' | 'levels' | 'play' | 'results';
+type AppMode = 'start' | 'customize' | 'levels' | 'play' | 'results';
 
 export class GameApp {
   private renderer: THREE.WebGLRenderer;
@@ -94,17 +94,12 @@ export class GameApp {
     });
 
     this.ui = new UIManager(this.container, this.state, this.economy, {
-      onPlay: () => this.setMode('select'),
-      onBodyPicked: () => {/* preview rebuild handled by state.onChange */},
-      onSelectConfirm: () => {
-        this.ui.syncCustomizeChips();
-        this.setMode('customize');
-      },
+      onPlay: () => this.setMode('customize'),
       onSkate: () => this.setMode('levels'),
       onLevelPicked: (id) => {
         void this.loadLevel(levelById(id)).then(() => this.startRun());
       },
-      onBackToSelect: () => this.setMode('select'),
+      onCustomize: () => this.setMode('customize'),
       onReset: () => this.respawnPlayer(),
       onRetry: () => this.startRun(),
       onExitToMenu: () => this.setMode('start'),
@@ -118,7 +113,7 @@ export class GameApp {
 
     // Any customization change rebuilds the preview model instantly.
     this.state.onChange(() => {
-      if (this.mode === 'select' || this.mode === 'customize') this.rebuildPreview();
+      if (this.mode === 'customize') this.rebuildPreview();
       this.ui.syncCustomizeChips();
     });
 
@@ -219,11 +214,11 @@ export class GameApp {
         this.audio.stopMusic();
         this.ui.show('start');
         break;
-      case 'select':
       case 'customize':
         this.score.stop();
         this.rebuildPreview();
-        this.ui.show(mode);
+        this.ui.syncCustomizeChips(); // highlight the chips for the current state
+        this.ui.show('customize');
         break;
       case 'levels':
         this.score.stop();
@@ -387,7 +382,7 @@ export class GameApp {
     const dt = Math.min(this.clock.getDelta(), 1 / 30); // clamp tab-switch spikes
     this.elapsed += dt;
 
-    if (this.mode === 'select' || this.mode === 'customize' || this.mode === 'levels') {
+    if (this.mode === 'customize' || this.mode === 'levels') {
       // Showroom: slow turntable spin.
       this.previewSpin += dt * 0.7;
       if (this.previewRig) {

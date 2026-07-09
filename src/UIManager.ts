@@ -4,12 +4,13 @@
  * Builds and owns every DOM layer that sits on top of the WebGL canvas:
  *
  *   start      — title screen
- *   select     — character select cards (+ locked "coming soon" slots)
  *   customize  — category chip grids that write into CustomizationState
+ *                (body type is just another chip row here)
+ *   levels     — level select cards
  *   hud        — score / combo / timer / trick popups / touch controls
  *   results    — end-of-run summary
  *
- * The 3D canvas stays visible behind the select & customize screens so the
+ * The 3D canvas stays visible behind the customize & level screens so the
  * live preview model shows through the layout's empty side.
  *
  * Touch input: the on-screen buttons set `touchSteer` / `touchJump` /
@@ -23,22 +24,19 @@ import {
   BOARDS,
   WHEEL_COLORS,
   TRAILS,
-  type BodyType,
 } from './CustomizationState';
 import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
 import { LEVELS } from './Levels';
 import { MUSIC_TRACKS } from './AudioSystem';
 
-export type ScreenName = 'start' | 'select' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
+export type ScreenName = 'start' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
 export interface UICallbacks {
-  onPlay(): void;                 // start → select
-  onBodyPicked(type: BodyType): void; // select card tapped (updates preview)
-  onSelectConfirm(): void;        // select → customize
+  onPlay(): void;                 // start → customize
   onSkate(): void;                // customize → level select
   onLevelPicked(id: string): void; // level select → game
-  onBackToSelect(): void;
+  onCustomize(): void;            // results → customize
   onReset(): void;                // respawn player
   onRetry(): void;                // results/pause → new run
   onExitToMenu(): void;           // results/hud/pause → start
@@ -93,7 +91,6 @@ export class UIManager {
   private specialBar!: HTMLElement;
   private specialWrap!: HTMLElement;
   private popupLayer!: HTMLElement;
-  private selectCards = new Map<BodyType, HTMLElement>();
   private balanceEls: HTMLElement[] = [];
   private root: HTMLElement;
 
@@ -119,7 +116,6 @@ export class UIManager {
       { passive: true },
     );
     this.buildStart();
-    this.buildSelect();
     this.buildCustomize();
     this.buildLevels();
     this.buildHUD();
@@ -161,61 +157,6 @@ export class UIManager {
   }
 
   /* ---------------------------------------------------------- */
-  /* Character select                                            */
-  /* ---------------------------------------------------------- */
-
-  private buildSelect(): void {
-    const s = el('div', 'screen screen-select hidden', this.root);
-    this.screens.set('select', s);
-
-    el('h2', 'screen-title', s, 'PICK YOUR SKATER');
-
-    // Left half of the screen is intentionally empty — the live 3D preview
-    // renders through from the canvas behind.
-    const panel = el('div', 'select-panel', s);
-    const grid = el('div', 'select-grid', panel);
-
-    for (const def of BODY_TYPES) {
-      const card = el('button', 'select-card', grid);
-      el('div', 'card-name', card, def.label);
-      el('div', 'card-blurb', card, def.blurb);
-      const bars = el('div', 'stat-bars', card);
-      const stat = (label: string, v: number) => {
-        const row = el('div', 'stat-row', bars);
-        el('span', 'stat-label', row, label);
-        const track = el('div', 'stat-track', row);
-        const fill = el('div', 'stat-fill', track);
-        fill.style.width = `${Math.round(v * 100)}%`;
-      };
-      stat('Speed', def.display.speed);
-      stat('Turning', def.display.turning);
-      stat('Bounce', def.display.bounce);
-
-      card.addEventListener('click', () => {
-        this.state.set('bodyType', def.id);
-        this.highlightSelectCard(def.id);
-        this.cb.onBodyPicked(def.id);
-      });
-      this.selectCards.set(def.id, card);
-    }
-
-    // Locked teaser card.
-    const locked = el('div', 'select-card locked', grid);
-    el('div', 'locked-silhouette', locked, '👤');
-    el('div', 'card-name', locked, '???');
-    el('div', 'card-blurb', locked, 'More types coming soon');
-
-    const next = el('button', 'btn btn-big btn-primary', panel, 'CUSTOMIZE →');
-    next.addEventListener('click', () => this.cb.onSelectConfirm());
-
-    this.highlightSelectCard(this.state.bodyType);
-  }
-
-  private highlightSelectCard(id: BodyType): void {
-    for (const [key, card] of this.selectCards) card.classList.toggle('selected', key === id);
-  }
-
-  /* ---------------------------------------------------------- */
   /* Customization                                               */
   /* ---------------------------------------------------------- */
 
@@ -225,7 +166,7 @@ export class UIManager {
 
     const top = el('div', 'customize-top', s);
     const back = el('button', 'btn btn-small', top, '← Back');
-    back.addEventListener('click', () => this.cb.onBackToSelect());
+    back.addEventListener('click', () => this.cb.onExitToMenu());
     el('h2', 'screen-title inline', top, 'MAKE IT YOURS');
     this.balanceEls.push(el('div', 'coin-balance pill', top, ''));
 
@@ -695,7 +636,7 @@ export class UIManager {
     const retry = el('button', 'btn btn-big btn-primary', row, 'RETRY');
     retry.addEventListener('click', () => this.cb.onRetry());
     const customize = el('button', 'btn btn-big', row, 'CUSTOMIZE');
-    customize.addEventListener('click', () => this.cb.onBackToSelect());
+    customize.addEventListener('click', () => this.cb.onCustomize());
     const menu = el('button', 'btn btn-big', row, 'MENU');
     menu.addEventListener('click', () => this.cb.onExitToMenu());
   }
