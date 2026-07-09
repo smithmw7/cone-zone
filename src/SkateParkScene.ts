@@ -68,7 +68,7 @@ export const GRID = 2;              // base unit (m) — placements snap to this
 const SLOPE_RUN = 2;                // slope run per 1m of rise (26.57°)
 const QP_MAX_ANGLE = (68 * Math.PI) / 180;
 const QP_RADIUS_PER_H = 1 / (1 - Math.cos(QP_MAX_ANGLE)); // lip height == h
-const WALL_HEIGHT = 3;
+const PERIMETER_H = 4.5;  // height of the curved boundary transition
 
 function yawQuat(yaw: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
@@ -115,6 +115,58 @@ function makeQuarterPipeGeometry(width: number, h: number, deckDepth: number): {
   geo.rotateY(-Math.PI / 2);
   geo.translate(width / 2, 0, 0);
   return { geo, lipY: h, lipZ: deckDepth };
+}
+
+/**
+ * Curved perimeter wall: a quarter-pipe transition profile swept around a
+ * rounded-rectangle path (the whole map boundary). Instead of four flat
+ * walls you can smash into, the entire edge curves up so you ride it like a
+ * bowl and get carried back in. Returns a triangle-soup BufferGeometry
+ * (world-space triplanar textures need no UVs; flat normals suit the look).
+ */
+function makePerimeterGeometry(lx: number, lz: number, cr: number, h: number): THREE.BufferGeometry {
+  const R = h * QP_RADIUS_PER_H;
+  const sinMax = Math.sin(QP_MAX_ANGLE);
+  // Cross-section profile, floor (inw = depth, y = 0) → lip (inw = 0, y = h).
+  const PROF = 10;
+  const prof: { inw: number; y: number }[] = [];
+  for (let j = 0; j <= PROF; j++) {
+    const a = (j / PROF) * QP_MAX_ANGLE;
+    prof.push({ inw: R * (sinMax - Math.sin(a)), y: R * (1 - Math.cos(a)) });
+  }
+
+  // Rounded-rectangle lip path with inward (toward centre) unit normals.
+  const ex = lx - cr, ez = lz - cr;
+  const path: { x: number; z: number; nx: number; nz: number }[] = [];
+  const add = (x: number, z: number, nx: number, nz: number) => path.push({ x, z, nx, nz });
+  const ARC = 6;
+  add(lx, -ez, -1, 0); add(lx, ez, -1, 0);                                   // right edge
+  for (let k = 1; k <= ARC; k++) { const t = (k / ARC) * (Math.PI / 2); add(ex + cr * Math.cos(t), ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
+  add(-ex, lz, 0, -1);                                                        // top edge
+  for (let k = 1; k <= ARC; k++) { const t = Math.PI / 2 + (k / ARC) * (Math.PI / 2); add(-ex + cr * Math.cos(t), ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
+  add(-lx, -ez, 1, 0);                                                        // left edge
+  for (let k = 1; k <= ARC; k++) { const t = Math.PI + (k / ARC) * (Math.PI / 2); add(-ex + cr * Math.cos(t), -ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
+  add(ex, -lz, 0, 1);                                                         // bottom edge
+  for (let k = 1; k < ARC; k++) { const t = 1.5 * Math.PI + (k / ARC) * (Math.PI / 2); add(ex + cr * Math.cos(t), -ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
+  // (loop closes back to path[0] = (lx,-ez), the final BR-arc point)
+
+  const N = path.length, M = prof.length;
+  const vAt = (i: number, j: number): [number, number, number] => {
+    const p = path[i], q = prof[j];
+    return [p.x + p.nx * q.inw, q.y, p.z + p.nz * q.inw];
+  };
+  const verts: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const i2 = (i + 1) % N;
+    for (let j = 0; j < M - 1; j++) {
+      const a = vAt(i, j), b = vAt(i2, j), c = vAt(i2, j + 1), d = vAt(i, j + 1);
+      verts.push(...a, ...c, ...b, ...a, ...d, ...c); // inward/up facing
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 /* ------------------------- surface textures ------------------------- */
@@ -461,6 +513,42 @@ vec3 triplanarColor() {
     this.moduleQuarterPipe(x + gap / 2 + depth, z, -Math.PI / 2, h, w, 2.4, y);
   }
 
+  /**
+   * Mega drop-in: a tall roll-in. Ride up the gentle bank on the back
+   * (-z), across the deck, then plunge the steep curved transition on the
+   * front (+z) to bomb into the park with big speed. Grind line on the lip.
+   */
+  moduleDropIn(x: number, z: number, yaw: number, h: number, w: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+
+    const deckLen = 4;
+    const deck = this.solidMesh(new THREE.BoxGeometry(w, h, deckLen), this.mat(this.theme.rampAlt), 'box');
+    deck.position.set(0, h / 2, 0);
+    g.add(deck);
+
+    // Front drop-in transition (vertical back on the deck, curves to floor +z).
+    const { geo } = makeQuarterPipeGeometry(w, h, 0.3);
+    const drop = this.solidMesh(geo, this.mat(this.theme.ramp), 'trimesh');
+    drop.position.set(0, 0, deckLen / 2);
+    g.add(drop);
+
+    // Back approach bank (ride up to the deck from -z).
+    const run = h * SLOPE_RUN;
+    const bank = this.solidMesh(this.wedgeGeo(w, h, run), this.mat(this.theme.ramp), 'trimesh');
+    bank.position.set(0, 0, -deckLen / 2);
+    bank.rotation.y = Math.PI; // slope falls away toward -z
+    g.add(bank);
+
+    const quat = yawQuat(yaw);
+    const origin = new THREE.Vector3(x, 0, z);
+    const a = new THREE.Vector3(-w / 2 + 0.2, h, deckLen / 2).applyQuaternion(quat).add(origin);
+    const b = new THREE.Vector3(w / 2 - 0.2, h, deckLen / 2).applyQuaternion(quat).add(origin);
+    this.pushRail(a, b, 'lip');
+    this.register(g);
+  }
+
   /** Spine: two deckless quarter pipes back-to-back + ridge grind line. */
   moduleSpine(x: number, z: number, yaw: number, h: number, w: number, y = 0): void {
     this.moduleQuarterPipe(x, z, yaw, h, w, 0.3, y);
@@ -726,32 +814,32 @@ vec3 triplanarColor() {
     surround.receiveShadow = true;
     this.scene.add(surround);
 
-    // High perimeter walls (solid, bonkable; position clamp is the backstop).
-    const wallMat = this.mat(this.theme.groundDark);
-    const capMat = this.mat(this.theme.rampAlt);
-    const wx = this.bounds.x + 2;
-    const wz = this.bounds.z + 2;
-    const mkWall = (ww: number, wd: number, x: number, z: number) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(ww, WALL_HEIGHT, wd), wallMat);
-      wall.position.set(x, WALL_HEIGHT / 2, z);
-      wall.castShadow = true;
-      wall.receiveShadow = true;
-      this.scene.add(wall);
-      this.physics.addBox(new THREE.Vector3(x, WALL_HEIGHT / 2, z), new THREE.Vector3(ww, WALL_HEIGHT, wd));
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(ww === 1 ? 1.4 : ww, 0.25, wd === 1 ? 1.4 : wd), capMat);
-      cap.position.set(x, WALL_HEIGHT + 0.12, z);
-      this.scene.add(cap);
-    };
-    mkWall(wx * 2 + 1, 1, 0, -wz);
-    mkWall(wx * 2 + 1, 1, 0, wz);
-    mkWall(1, wz * 2 + 1, -wx, 0);
-    mkWall(1, wz * 2 + 1, wx, 0);
+    this.buildCurvedPerimeter();
 
     // Spawn pad marker.
     const pad = new THREE.Mesh(new THREE.BoxGeometry(3, 0.02, 3), this.mat(0x8fc7e8));
     pad.position.set(this.config.spawn.x, 0.012, this.config.spawn.z);
     pad.receiveShadow = true;
     this.scene.add(pad);
+  }
+
+  /**
+   * The whole boundary is one continuous curved transition (rounded rect),
+   * so you ride the edge like a bowl wall instead of smashing a flat wall.
+   * The position clamp (controller.bounds) is the backstop above the lip.
+   */
+  private buildCurvedPerimeter(): void {
+    const lx = this.bounds.x + 0.5;
+    const lz = this.bounds.z + 0.5;
+    const cr = Math.min(16, this.bounds.x * 0.5, this.bounds.z * 0.5);
+    const geo = makePerimeterGeometry(lx, lz, cr, PERIMETER_H);
+    const mat = new THREE.MeshLambertMaterial({ color: this.theme.ramp, flatShading: true, side: THREE.DoubleSide });
+    this.applyTriplanar(mat, this.woodTexture(), 0.5);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    this.physics.addTrimesh(geo, new THREE.Vector3(0, 0, 0), new THREE.Quaternion());
   }
 
   private buildLampPosts(): void {
