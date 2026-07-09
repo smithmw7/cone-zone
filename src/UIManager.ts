@@ -330,6 +330,21 @@ export class UIManager {
       el('div', 'level-size', card, `${lvl.bounds.x * 2}×${lvl.bounds.z * 2}m${lvl.physics?.speedMul ? ' · fast & drifty' : ''}`);
       card.addEventListener('click', () => this.cb.onLevelPicked(lvl.id));
     }
+    // A mouse wheel won't scroll a horizontal overflow (and macOS hides the
+    // scrollbar), which left the last spot looking cropped with no way to
+    // reach it. Translate vertical wheel movement into horizontal scroll.
+    grid.addEventListener(
+      'wheel',
+      (e) => {
+        if (grid.scrollWidth <= grid.clientWidth) return;
+        const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (delta) {
+          grid.scrollLeft += delta;
+          e.preventDefault();
+        }
+      },
+      { passive: false },
+    );
   }
 
   /* ---------------------------------------------------------- */
