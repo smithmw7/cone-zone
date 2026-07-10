@@ -202,13 +202,29 @@ export class PlayerController {
     return Math.hypot(this.vel.x, this.vel.z);
   }
 
+  /* Handling shifts with the burger's WEIGHT. The base bun + patty is nimble
+     (turns easier than the old cone); every stacked topping adds weight that
+     stiffens and slows the steering — higher risk — while nudging up the top
+     speed. Big towers are fast but a handful; small burgers carve. */
+  private get stackLayers(): number {
+    return Math.max(0, (this.rig.stack?.count ?? 1) - 1);
+  }
+  private get turnWeightMul(): number {
+    return 1.35 / (1 + this.stackLayers * 0.07);
+  }
+  private get speedWeightMul(): number {
+    return 1 + this.stackLayers * 0.014;
+  }
+
   get isGrinding(): boolean {
     return this.mode === 'grind';
   }
 
   update(dt: number, input: InputState, elapsed: number): void {
-    // Smooth steering so touch buttons don't feel binary.
-    this.steerSmooth += (input.steer - this.steerSmooth) * Math.min(1, dt * 12);
+    // Smooth steering so touch buttons don't feel binary. The base burger
+    // responds crisply; weight makes the input lag (heavier = sluggish).
+    const steerRate = Math.max(6, 14 - this.stackLayers * 0.6);
+    this.steerSmooth += (input.steer - this.steerSmooth) * Math.min(1, dt * steerRate);
 
     // Jump buffering makes ollie timing forgiving.
     const jumpPressed = input.jump && !this.jumpHeld;
@@ -249,12 +265,13 @@ export class PlayerController {
     const boost = this.boostingNow ? 1.6 : 1;
 
     if (this.mode === 'ground') {
-      // Turning scales with speed a little so standing turns aren't twitchy.
+      // Turning scales with speed a little so standing turns aren't twitchy,
+      // and with the burger's weight (nimble base → stiff heavy stacks).
       const speedFactor = 0.45 + 0.55 * Math.min(1, Math.abs(this.speed) / 6);
-      this.yaw -= this.steerSmooth * this.stats.turnRate * this.levelTurnMul * speedFactor * dt;
+      this.yaw -= this.steerSmooth * this.stats.turnRate * this.levelTurnMul * this.turnWeightMul * speedFactor * dt;
 
-      // Auto-forward: cruise toward target speed; S brakes.
-      const target = this.stats.maxSpeed * boost * this.levelSpeedMul;
+      // Auto-forward: cruise toward target speed; S brakes. Weight adds speed.
+      const target = this.stats.maxSpeed * boost * this.levelSpeedMul * this.speedWeightMul;
       if (input.throttle < -0.1) {
         this.speed = THREE.MathUtils.damp(this.speed, 0, 4, dt);
       } else {
@@ -268,7 +285,7 @@ export class PlayerController {
       // fades on steep transitions (normal.y → 0) so quarter pipes and
       // bowls convert speed into launch instead of eating it.
       this.speed -= slopeF.y * 11 * Math.max(0.32, this.groundNormal.y) * dt;
-      this.speed = THREE.MathUtils.clamp(this.speed, -2, this.stats.maxSpeed * 2.2 * this.levelSpeedMul);
+      this.speed = THREE.MathUtils.clamp(this.speed, -2, this.stats.maxSpeed * 2.2 * this.levelSpeedMul * this.speedWeightMul);
       this.vel.copy(slopeF).multiplyScalar(this.speed);
 
       this.coyoteTimer = 0.12;
@@ -315,7 +332,7 @@ export class PlayerController {
           this.vel.addScaledVector(this.vertNormal, adjusted - vn);
         }
       }
-      const spinDelta = -this.steerSmooth * AIR_SPIN_RATE * dt;
+      const spinDelta = -this.steerSmooth * AIR_SPIN_RATE * dt / (1 + this.stackLayers * 0.05);
       this.yaw += spinDelta;
       this.spinAccum += spinDelta;
       this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
