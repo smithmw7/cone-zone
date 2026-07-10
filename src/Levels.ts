@@ -199,6 +199,107 @@ function buildPowderPeak(p: SkateParkScene): void {
 }
 
 /* ================================================================== */
+/* Shared parametric park — a solid, chainable, reachable-coin layout   */
+/* scaled to any bounds. New themed levels build on top of it.          */
+/* ================================================================== */
+
+function basicPark(p: SkateParkScene, X: number, Z: number): void {
+  const kx = Math.round(X * 0.42);
+  const near = Z - 10;
+  const mid = Z * 0.28;
+
+  // Flagship mega drop-in bombs north from the spawn side.
+  p.moduleRoller(0, near, 0, 14);
+  p.moduleDropIn(0, mid, Math.PI, 5, 18);
+
+  // Left chain: kicker → rail → ledge (aligned down z).
+  p.moduleKicker(-kx, Z * 0.3, 0, 1, 8);
+  p.moduleRail(-kx, 0.6, Z * 0.15, -kx, 0.6, 0);
+  p.moduleLedge(-kx, -Z * 0.2, 0, 10, 0.6);
+
+  // Right chain: manual pad → funbox → rail.
+  p.moduleManualPad(kx, Z * 0.3, 0, 10);
+  p.moduleFunbox(kx, Z * 0.08, 0, 1, 9, 5);
+  p.moduleRail(kx, 0.6, -Z * 0.08, kx, 0.6, -Z * 0.28);
+
+  // Center + north landing.
+  p.moduleSpine(0, -Z * 0.22, Math.PI / 2, 1, 14);
+  p.modulePyramid(-X * 0.5, -Z * 0.55, 2);
+  p.modulePyramid(X * 0.5, -Z * 0.55, 2);
+
+  // Wing transitions + a street corner.
+  p.moduleBowl(-X * 0.7, Z * 0.28, 2);
+  p.moduleBowl(X * 0.7, -Z * 0.25, 2);
+  p.moduleHalfPipe(-X * 0.72, -Z * 0.05, 2, 16, 8);
+  p.moduleStairs(X * 0.6, Z * 0.5, Math.PI, 1, 8);
+  p.moduleRail(X * 0.6, 1.2, Z * 0.42, X * 0.6, 0.4, Z * 0.6);
+
+  p.placeCollectibles([
+    // drop-in line
+    [0, 1.3, near - 4], [0, 5.9, mid], [0, 1.3, mid - 12], [0, 1.3, -6], [0, 1.3, -Z * 0.4],
+    // left chain
+    [-kx, 2.8, Z * 0.26], [-kx, 1.3, Z * 0.08], [-kx, 1.4, -Z * 0.2],
+    // right chain
+    [kx, 1.3, Z * 0.3], [kx, 2.6, Z * 0.08], [kx, 1.3, -Z * 0.2],
+    // center + pyramids
+    [0, 2.1, -Z * 0.22], [-X * 0.5, 3, -Z * 0.55], [X * 0.5, 3, -Z * 0.55],
+    // wings
+    [-X * 0.7, 1.3, Z * 0.28], [X * 0.7, 1.3, -Z * 0.25], [-X * 0.72, 1.3, -Z * 0.05], [-X * 0.72, 3, -Z * 0.05],
+    [X * 0.6, 1.6, Z * 0.5],
+    // cruisers
+    [-X * 0.35, 1.2, Z * 0.5], [X * 0.35, 1.2, Z * 0.5], [-X * 0.55, 1.2, -Z * 0.2], [X * 0.55, 1.2, Z * 0.2], [0, 1.2, Z * 0.1],
+  ]);
+  p.placeBoostOrbs([
+    [0, 1, near], [0, 1, -Z * 0.3], [-kx, 1, Z * 0.2], [kx, 1, Z * 0.2], [-X * 0.72, 1, -Z * 0.05],
+    [X * 0.7, 1, -Z * 0.25], [-X * 0.7, 1, Z * 0.28], [0, 1, -Z * 0.5], [X * 0.6, 1, Z * 0.5], [0, 1, 0],
+  ]);
+}
+
+/* 4. SUNNY COVE — beach: palms, sand, an ocean lapping the park. */
+function buildSunnyCove(p: SkateParkScene): void {
+  basicPark(p, 76, 54);
+  // Beachy extras: an extra bowl + a spine reef.
+  p.moduleBowl(20, 30, 2);
+  p.moduleSpine(-24, 34, 0, 1, 12);
+}
+
+/* 5. CANOPY RUN — jungle rainforest: dense canopy, a lagoon. */
+function buildCanopyRun(p: SkateParkScene): void {
+  basicPark(p, 72, 64);
+  // Jungle temple pyramid + twin kickers deeper in.
+  p.modulePyramid(0, 40, 3);
+  p.moduleKicker(-16, 44, 0, 2, 8);
+  p.moduleKicker(16, 44, 0, 2, 8);
+}
+
+/* 6. REDWOOD COAST — towering redwoods over a cold coastline. */
+function buildRedwoodCoast(p: SkateParkScene): void {
+  basicPark(p, 80, 54);
+  // A second, taller mega drop-in on the west + a long coastal rail.
+  p.moduleDropIn(-46, 6, Math.PI / 2, 6, 16);
+  p.moduleRail(0, 0.6, 44, 0, 0.6, 20);
+}
+
+/* 7. AQUEDUCT CITY — concrete channels + a raised highway of grind rails. */
+function buildAqueductCity(p: SkateParkScene): void {
+  basicPark(p, 88, 60);
+  // The "highway": long parallel elevated grind rails you can bomb.
+  p.moduleLedge(-58, 8, Math.PI / 2, 40, 1.2);
+  p.moduleRail(-58, 1.7, 26, -58, 1.7, -14);
+  p.moduleRail(58, 1.2, 30, 58, 1.2, -18);
+  p.moduleStairs(-30, 46, Math.PI, 2, 12);
+}
+
+/* 8. SUNSET HARBOR — a marina at golden hour, pier ramps over the water. */
+function buildSunsetHarbor(p: SkateParkScene): void {
+  basicPark(p, 78, 58);
+  // Pier: a big half-pipe + manual pads along the boardwalk.
+  p.moduleHalfPipe(40, 30, 3, 20, 8);
+  p.moduleManualPad(-20, 44, 0, 12);
+  p.moduleManualPad(12, 44, 0, 12);
+}
+
+/* ================================================================== */
 
 export const LEVELS: LevelConfig[] = [
   {
@@ -246,6 +347,87 @@ export const LEVELS: LevelConfig[] = [
       skyPresets: ['Alpine', 'Noon', 'Minty', 'Dusk'],
     },
     build: buildPowderPeak,
+  },
+  {
+    id: 'sunny-cove',
+    name: 'Sunny Cove',
+    blurb: 'Beach break. Palms, warm sand and an ocean lapping the coping.',
+    icon: '🏖️',
+    bounds: { x: 76, z: 54 },
+    spawn: { x: 0, z: 46, yaw: Math.PI },
+    theme: {
+      ground: 0xe8d9a8, groundDark: 0xcdb87e, ramp: 0xd8a25a, rampAlt: 0xc48c44,
+      surround: 0xf0e2b0, rail: 0xff9a3c, treeCrown: 0x4fb36a, treeCrown2: 0x6fce86, treeTrunk: 0x9a6a3a,
+      foliage: 'palm',
+      water: { shallow: 0x37cbe0, deep: 0x1a7fb0, level: -0.55, surround: 24 },
+      skyPresets: ['Noon', 'Sunset', 'Dawn'],
+    },
+    build: buildSunnyCove,
+  },
+  {
+    id: 'canopy-run',
+    name: 'Canopy Run',
+    blurb: 'Rainforest floor. Dense canopy, a hidden temple, a warm lagoon.',
+    icon: '🌴',
+    bounds: { x: 72, z: 64 },
+    spawn: { x: 0, z: 56, yaw: Math.PI },
+    theme: {
+      ground: 0x8a9c5a, groundDark: 0x6f8046, ramp: 0xb98a49, rampAlt: 0xa2763b,
+      surround: 0x4f7a3a, rail: 0xffd24d, treeCrown: 0x2f8f3e, treeCrown2: 0x4fb85a, treeTrunk: 0x6b4a2c,
+      foliage: 'jungle',
+      water: { shallow: 0x3fd0a8, deep: 0x1a8f78, level: -0.55, surround: 30 },
+      skyPresets: ['Noon', 'Dawn', 'Minty'],
+    },
+    build: buildCanopyRun,
+  },
+  {
+    id: 'redwood-coast',
+    name: 'Redwood Coast',
+    blurb: 'Giant redwoods over a cold, foggy coastline. Bomb the bluffs.',
+    icon: '🌲',
+    bounds: { x: 80, z: 54 },
+    spawn: { x: 0, z: 46, yaw: Math.PI },
+    theme: {
+      ground: 0xa9b0a0, groundDark: 0x8b937f, ramp: 0xc08a52, rampAlt: 0xa5733f,
+      surround: 0x5c7a52, rail: 0xe8b34d, treeCrown: 0x2e5e3e, treeCrown2: 0x3f7a4e, treeTrunk: 0x8a4a30,
+      foliage: 'redwood',
+      water: { shallow: 0x4a9fc0, deep: 0x24607e, level: -0.6, surround: 26 },
+      skyPresets: ['Dawn', 'Dusk', 'Alpine'],
+    },
+    build: buildRedwoodCoast,
+  },
+  {
+    id: 'aqueduct-city',
+    name: 'Aqueduct City',
+    blurb: 'Concrete channels and a highway of grind rails. Full-speed lines.',
+    icon: '🏙️',
+    bounds: { x: 88, z: 60 },
+    spawn: { x: 0, z: 52, yaw: Math.PI },
+    physics: { speedMul: 1.1 },
+    theme: {
+      ground: 0xbfc2c8, groundDark: 0x92959c, ramp: 0xb9bcc2, rampAlt: 0x9a9da4,
+      surround: 0x7a7d84, rail: 0xffcf3d, treeCrown: 0x4f9a54, treeCrown2: 0x6bc06f, treeTrunk: 0x6a5540,
+      foliage: 'city',
+      water: { shallow: 0x40b7e0, deep: 0x1f6f9e, level: -0.5, surround: 30 },
+      skyPresets: ['Noon', 'Sunset', 'Dusk'],
+    },
+    build: buildAqueductCity,
+  },
+  {
+    id: 'sunset-harbor',
+    name: 'Sunset Harbor',
+    blurb: 'Golden-hour marina. Pier ramps and glassy water everywhere.',
+    icon: '🌅',
+    bounds: { x: 78, z: 58 },
+    spawn: { x: 0, z: 50, yaw: Math.PI },
+    theme: {
+      ground: 0xc9b48a, groundDark: 0xa9946c, ramp: 0xc98a4e, rampAlt: 0xb0743a,
+      surround: 0xb89a6a, rail: 0xff8a3c, treeCrown: 0x4fa36a, treeCrown2: 0x6fce86, treeTrunk: 0x8a5a34,
+      foliage: 'palm',
+      water: { shallow: 0x59b8d8, deep: 0x2a6f9e, level: -0.5, surround: 26 },
+      skyPresets: ['Sunset', 'Dawn', 'Dusk'],
+    },
+    build: buildSunsetHarbor,
   },
 ];
 

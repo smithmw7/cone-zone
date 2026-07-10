@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { PhysicsWorld } from './PhysicsWorld';
 import { SkySystem } from './SkySystem';
+import { WaterSystem } from './WaterSystem';
 
 export interface RailSegment {
   a: THREE.Vector3;
@@ -35,6 +36,15 @@ interface Collectible {
   respawnAt?: number;
 }
 
+export type FoliageKind = 'round' | 'pine' | 'palm' | 'jungle' | 'redwood' | 'city';
+
+export interface WaterTheme {
+  shallow: number;
+  deep: number;
+  level: number;   // world Y of the surface (defaults just below the park)
+  surround?: number; // shrink the ground skirt so water shows around the park
+}
+
 export interface LevelTheme {
   ground: number;
   groundDark: number;
@@ -46,6 +56,12 @@ export interface LevelTheme {
   treeTrunk: number;
   /** pine-shaped trees with white tips (snow levels) */
   snowPines?: boolean;
+  /** perimeter foliage style (defaults: round, or pine if snowPines) */
+  foliage?: FoliageKind;
+  /** secondary crown tint for fuller/higher-fidelity trees */
+  treeCrown2?: number;
+  /** stylized water surrounding the park */
+  water?: WaterTheme;
   /** limit the random sky to these preset names */
   skyPresets?: string[];
 }
@@ -270,6 +286,7 @@ export class SkateParkScene {
   spawnYaw: number;
   totalCollectibles = 0;
   sky!: SkySystem;
+  private water?: WaterSystem;
   readonly bounds: { x: number; z: number };
 
   private collectibles: Collectible[] = [];
@@ -743,46 +760,7 @@ vec3 triplanarColor() {
 
     this.sky = new SkySystem(this.scene, sun, hemi);
 
-    // Tree ring OUTSIDE the walls: walk the wall rectangle's perimeter and
-    // push each tree outward. (An ellipse ring dips inside a rectangle's
-    // corners, which used to leave trees overlapping walls and the park.)
-    const count = Math.round((this.bounds.x + this.bounds.z) / 8);
-    for (let i = 0; i < count; i++) {
-      const u = (i / count) * 4;
-      const side = Math.floor(u);
-      const f = u - side;
-      const out = 7 + (i % 3) * 4; // stagger depth so it's not a fence
-      const bx = this.bounds.x + 2;
-      const bz = this.bounds.z + 2;
-      let tx = 0, tz = 0;
-      if (side === 0) { tx = -bx + f * 2 * bx; tz = -(bz + out); }
-      else if (side === 1) { tx = bx + out; tz = -bz + f * 2 * bz; }
-      else if (side === 2) { tx = bx - f * 2 * bx; tz = bz + out; }
-      else { tx = -(bx + out); tz = bz - f * 2 * bz; }
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.6, 7), this.mat(this.theme.treeTrunk));
-      trunk.position.y = 1.3;
-      tree.add(trunk);
-      if (this.theme.snowPines) {
-        for (let t = 0; t < 3; t++) {
-          const r = 2.2 - t * 0.6;
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(r, 2.2, 7), this.mat(this.theme.treeCrown));
-          cone.position.y = 2.6 + t * 1.5;
-          cone.castShadow = true;
-          tree.add(cone);
-        }
-        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.0, 7), this.mat(0xf4f8fc));
-        cap.position.y = 7.1;
-        tree.add(cap);
-      } else {
-        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(2.0, 0), this.mat(this.theme.treeCrown));
-        crown.position.y = 3.6;
-        crown.castShadow = true;
-        tree.add(crown);
-      }
-      tree.position.set(tx, 0, tz);
-      this.scene.add(tree);
-    }
+    this.buildFoliage();
 
     // Chunky clouds.
     const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
@@ -800,6 +778,202 @@ vec3 triplanarColor() {
     }
   }
 
+  /* ---------------- foliage: higher-fidelity trees, bushes, rocks --------- */
+
+  private frnd = 12345;
+  /** Deterministic pseudo-random so a level's belt looks the same each load. */
+  private rnd(): number {
+    this.frnd = (this.frnd * 1103515245 + 12345) & 0x7fffffff;
+    return this.frnd / 0x7fffffff;
+  }
+
+  private buildFoliage(): void {
+    this.frnd = Math.round((this.bounds.x + this.bounds.z) * 131) || 1;
+    const kind: FoliageKind = this.theme.foliage ?? (this.theme.snowPines ? 'pine' : 'round');
+    const bx = this.bounds.x + 2;
+    const bz = this.bounds.z + 2;
+    const count = Math.round((this.bounds.x + this.bounds.z) / 7);
+    for (let i = 0; i < count; i++) {
+      const u = (i / count) * 4;
+      const side = Math.floor(u);
+      const f = u - side;
+      const out = 8 + this.rnd() * 14; // deeper, staggered belt
+      let tx = 0, tz = 0;
+      if (side === 0) { tx = -bx + f * 2 * bx; tz = -(bz + out); }
+      else if (side === 1) { tx = bx + out; tz = -bz + f * 2 * bz; }
+      else if (side === 2) { tx = bx - f * 2 * bx; tz = bz + out; }
+      else { tx = -(bx + out); tz = bz - f * 2 * bz; }
+      const tree = this.makeTree(kind);
+      tree.position.set(tx + (this.rnd() - 0.5) * 6, 0, tz + (this.rnd() - 0.5) * 6);
+      tree.scale.setScalar(0.85 + this.rnd() * 0.5);
+      tree.rotation.y = this.rnd() * Math.PI * 2;
+      this.scene.add(tree);
+
+      if (this.rnd() < 0.7) {
+        const deco = this.rnd() < 0.65 ? this.makeBush() : this.makeRock();
+        deco.position.set(tx + (this.rnd() - 0.5) * 10, 0, tz + (this.rnd() - 0.5) * 10);
+        deco.rotation.y = this.rnd() * Math.PI * 2;
+        this.scene.add(deco);
+      }
+    }
+  }
+
+  private makeTree(kind: FoliageKind): THREE.Group {
+    switch (kind) {
+      case 'palm': return this.makeTreePalm();
+      case 'jungle': return this.makeTreeJungle();
+      case 'redwood': return this.makeTreeRedwood();
+      case 'pine': return this.makeTreePine();
+      case 'city': return this.makeTreeRound(2.6, true);
+      default: return this.makeTreeRound(2.8, false);
+    }
+  }
+
+  private crownMat(alt = false): THREE.MeshLambertMaterial {
+    return this.mat(alt && this.theme.treeCrown2 !== undefined ? this.theme.treeCrown2 : this.theme.treeCrown);
+  }
+
+  private makeTreeRound(trunkH: number, tidy: boolean): THREE.Group {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.42, trunkH, 7), this.mat(this.theme.treeTrunk));
+    trunk.position.y = trunkH / 2;
+    trunk.castShadow = true;
+    g.add(trunk);
+    const base = trunkH + 1.1;
+    const blobs: [number, number, number, number, boolean][] = tidy
+      ? [[0, base, 0, 2.0, false], [0, base + 1.0, 0, 1.5, true]]
+      : [[0, base, 0, 2.2, false], [1.1, base - 0.5, 0.3, 1.5, true], [-0.9, base - 0.3, -0.5, 1.4, false], [0.2, base + 1.1, 0.2, 1.4, true]];
+    for (const [x, y, z, r, alt] of blobs) {
+      const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), this.crownMat(alt));
+      crown.position.set(x, y, z);
+      crown.castShadow = true;
+      g.add(crown);
+    }
+    return g;
+  }
+
+  private makeTreePine(): THREE.Group {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 2.4, 7), this.mat(this.theme.treeTrunk));
+    trunk.position.y = 1.2;
+    g.add(trunk);
+    for (let t = 0; t < 4; t++) {
+      const r = 2.3 - t * 0.5;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(r, 2.1, 8), this.crownMat(t % 2 === 1));
+      cone.position.y = 2.4 + t * 1.35;
+      cone.castShadow = true;
+      g.add(cone);
+    }
+    if (this.theme.snowPines) {
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 7), this.mat(0xf4f8fc));
+      cap.position.y = 8.0;
+      g.add(cap);
+    }
+    return g;
+  }
+
+  private makeTreePalm(): THREE.Group {
+    const g = new THREE.Group();
+    const trunkMat = this.mat(this.theme.treeTrunk);
+    let px = 0, py = 0;
+    for (let s = 0; s < 6; s++) {
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.2 - s * 0.015, 0.24 - s * 0.015, 1.15, 7), trunkMat);
+      px += 0.16 * s * 0.1;
+      seg.position.set(px, py + 0.58, 0);
+      seg.rotation.z = -0.05 * s;
+      seg.castShadow = true;
+      g.add(seg);
+      py += 1.1;
+    }
+    const frondMat = this.crownMat();
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2;
+      const frond = new THREE.Mesh(new THREE.ConeGeometry(0.42, 3.2, 5), frondMat);
+      frond.position.set(px + Math.cos(a) * 1.1, py + 0.1, Math.sin(a) * 1.1);
+      frond.rotation.z = Math.cos(a) * 1.15;
+      frond.rotation.x = -Math.sin(a) * 1.15;
+      frond.scale.set(0.6, 1, 0.6);
+      frond.castShadow = true;
+      g.add(frond);
+    }
+    for (let c = 0; c < 3; c++) {
+      const nut = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 6), this.mat(0x8a5a2b));
+      nut.position.set(px + (c - 1) * 0.18, py - 0.2, 0.1);
+      g.add(nut);
+    }
+    return g;
+  }
+
+  private makeTreeJungle(): THREE.Group {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 4.2, 8), this.mat(this.theme.treeTrunk));
+    trunk.position.y = 2.1;
+    trunk.castShadow = true;
+    g.add(trunk);
+    const canopy: [number, number, number, number, boolean][] = [
+      [0, 5.6, 0, 3.0, false], [2.1, 5.0, 0.6, 1.9, true], [-1.9, 5.2, -0.7, 1.8, true],
+      [0.4, 6.6, 0.3, 1.9, false], [-0.6, 5.3, 1.8, 1.6, true],
+    ];
+    for (const [x, y, z, r, alt] of canopy) {
+      const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), this.crownMat(alt));
+      blob.position.set(x, y, z);
+      blob.scale.y = 0.85;
+      blob.castShadow = true;
+      g.add(blob);
+    }
+    for (let v = 0; v < 3; v++) {
+      const a = this.rnd() * Math.PI * 2;
+      const vine = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6 + this.rnd(), 5), this.crownMat(true));
+      vine.position.set(Math.cos(a) * 2.2, 4.3, Math.sin(a) * 2.2);
+      g.add(vine);
+    }
+    return g;
+  }
+
+  private makeTreeRedwood(): THREE.Group {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.85, 9, 8), this.mat(this.theme.treeTrunk));
+    trunk.position.y = 4.5;
+    trunk.castShadow = true;
+    g.add(trunk);
+    for (let t = 0; t < 4; t++) {
+      const r = 2.4 - t * 0.5;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(r, 3.0, 8), this.crownMat(t % 2 === 1));
+      cone.position.y = 7.2 + t * 1.7;
+      cone.castShadow = true;
+      g.add(cone);
+    }
+    return g;
+  }
+
+  private makeBush(): THREE.Group {
+    const g = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const r = 0.7 + this.rnd() * 0.5;
+      const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), this.crownMat(i === 1));
+      blob.position.set((this.rnd() - 0.5) * 1.4, r * 0.7, (this.rnd() - 0.5) * 1.4);
+      blob.scale.y = 0.8;
+      blob.castShadow = true;
+      g.add(blob);
+    }
+    return g;
+  }
+
+  private makeRock(): THREE.Group {
+    const g = new THREE.Group();
+    const grey = this.mat(0x8b8b90);
+    for (let i = 0; i < 2; i++) {
+      const r = 0.6 + this.rnd() * 0.9;
+      const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), grey);
+      rock.position.set((this.rnd() - 0.5) * 1.6, r * 0.45, (this.rnd() - 0.5) * 1.6);
+      rock.scale.set(1, 0.6, 1.1);
+      rock.rotation.set(this.rnd(), this.rnd() * Math.PI, this.rnd());
+      rock.castShadow = true;
+      g.add(rock);
+    }
+    return g;
+  }
+
   private buildGroundAndWalls(): void {
     const w = this.bounds.x * 2 + 5;
     const d = this.bounds.z * 2 + 5;
@@ -809,10 +983,28 @@ vec3 triplanarColor() {
     this.scene.add(ground);
     this.physics.addBox(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(w, 1, d));
 
-    const surround = new THREE.Mesh(new THREE.BoxGeometry(w + 90, 0.9, d + 70), this.mat(this.theme.surround));
+    // Ground skirt (grass/sand/canyon floor). Water levels get a modest
+    // beach ring so the ocean shows around it; dry levels keep a big skirt.
+    const water = this.theme.water;
+    const skirt = water ? (water.surround ?? 40) : 90;
+    const surround = new THREE.Mesh(
+      new THREE.BoxGeometry(w + skirt, 0.9, d + skirt * 0.78), this.mat(this.theme.surround),
+    );
     surround.position.y = -0.56;
     surround.receiveShadow = true;
     this.scene.add(surround);
+
+    if (water) {
+      this.water = new WaterSystem(this.scene, {
+        shallow: water.shallow,
+        deep: water.deep,
+        // Keep the surface (and its wave crests, ~+1) below the park deck so
+        // it laps the shore instead of poking up through the floor.
+        level: Math.min(water.level ?? -1.35, -1.2),
+        extent: 420,
+        fog: this.theme.skyPresets ? 0x9fc6e8 : 0x8ec9ff,
+      });
+    }
 
     this.buildCurvedPerimeter();
 
@@ -932,6 +1124,11 @@ vec3 triplanarColor() {
   update(dt: number, playerPos: THREE.Vector3): { coins: number; orbs: number } {
     this.spinTime += dt;
     this.elapsed += dt;
+    if (this.water) {
+      this.water.update(this.elapsed);
+      const fog = this.scene.fog as THREE.Fog | null;
+      if (fog) this.water.setFog(fog.color.getHex()); // match the current sky
+    }
     let coins = 0;
     for (const c of this.collectibles) {
       if (c.taken) continue;
