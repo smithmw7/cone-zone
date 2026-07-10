@@ -25,6 +25,17 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 
 - Optional follow-up: split the existing large Three.js bundle; Vite still reports the pre-existing >500 kB chunk warning.
 
+## 2026-07-10 Perimeter wall rebuild
+
+- New request: make map walls more forgiving with a tighter, lower curve into a straight concrete wall and concrete top cap; prevent wall-top bonks and corner escapes; test ordinary wall and corner movement.
+- Replaced the 4.5m, 68-degree perimeter ramp with a 1.75m quarter-circle transition feeding a 6.5m vertical concrete wall.
+- Increased rounded-corner tessellation from 6 to 36 segments per quadrant.
+- Added an outward-only visual concrete cap, deliberately excluded from collision so it cannot catch or flip the rider.
+- Changed the controller safety backstop from a square clamp to an inset rounded rectangle matching the visible wall corners.
+- Controlled normal-speed validation: straight wall reached 2.14m, returned inward with 0 bonks and 0 boundary escapes; diagonal corner approach had 0 bonks and 0 boundary escapes.
+- Required web-game client passed the full home → customize → Grill Yard flow plus steering and jump; gameplay screenshot/text state matched and no browser errors were recorded.
+- Final wall/corner screenshots and numeric traces are under `output/perimeter-wall-test/`.
+
 ## 2026-07-10 Level design audit
 
 - Audited all eight levels from top-down runtime captures and inspected authored module footprints/collision behavior; no level geometry was changed.

@@ -84,7 +84,12 @@ export const GRID = 2;              // base unit (m) — placements snap to this
 const SLOPE_RUN = 2;                // slope run per 1m of rise (26.57°)
 const QP_MAX_ANGLE = (68 * Math.PI) / 180;
 const QP_RADIUS_PER_H = 1 / (1 - Math.cos(QP_MAX_ANGLE)); // lip height == h
-const PERIMETER_H = 4.5;  // height of the curved boundary transition
+// The perimeter is deliberately different from a skate-module quarter pipe:
+// a short, tight 90-degree transition feeds into a tall retaining wall. This
+// lets riders carry momentum upward without presenting a launchable lip.
+const PERIMETER_TRANSITION_H = 1.75;
+const PERIMETER_WALL_H = 6.5;
+const PERIMETER_CAP_DEPTH = 0.65;
 
 function yawQuat(yaw: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
@@ -140,31 +145,39 @@ function makeQuarterPipeGeometry(width: number, h: number, deckDepth: number): {
  * bowl and get carried back in. Returns a triangle-soup BufferGeometry
  * (world-space triplanar textures need no UVs; flat normals suit the look).
  */
-function makePerimeterGeometry(lx: number, lz: number, cr: number, h: number): THREE.BufferGeometry {
-  const R = h * QP_RADIUS_PER_H;
-  const sinMax = Math.sin(QP_MAX_ANGLE);
-  // Cross-section profile, floor (inw = depth, y = 0) → lip (inw = 0, y = h).
-  const PROF = 10;
-  const prof: { inw: number; y: number }[] = [];
-  for (let j = 0; j <= PROF; j++) {
-    const a = (j / PROF) * QP_MAX_ANGLE;
-    prof.push({ inw: R * (sinMax - Math.sin(a)), y: R * (1 - Math.cos(a)) });
-  }
-
-  // Rounded-rectangle lip path with inward (toward centre) unit normals.
+function perimeterPath(lx: number, lz: number, cr: number): { x: number; z: number; nx: number; nz: number }[] {
+  // Rounded-rectangle wall path with inward (toward centre) unit normals.
+  // The denser corner tessellation prevents the old six-sided corners from
+  // acting like little kickers at speed.
   const ex = lx - cr, ez = lz - cr;
   const path: { x: number; z: number; nx: number; nz: number }[] = [];
   const add = (x: number, z: number, nx: number, nz: number) => path.push({ x, z, nx, nz });
-  const ARC = 6;
-  add(lx, -ez, -1, 0); add(lx, ez, -1, 0);                                   // right edge
+  const ARC = 36;
+  add(lx, -ez, -1, 0); add(lx, ez, -1, 0);
   for (let k = 1; k <= ARC; k++) { const t = (k / ARC) * (Math.PI / 2); add(ex + cr * Math.cos(t), ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
-  add(-ex, lz, 0, -1);                                                        // top edge
+  add(-ex, lz, 0, -1);
   for (let k = 1; k <= ARC; k++) { const t = Math.PI / 2 + (k / ARC) * (Math.PI / 2); add(-ex + cr * Math.cos(t), ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
-  add(-lx, -ez, 1, 0);                                                        // left edge
+  add(-lx, -ez, 1, 0);
   for (let k = 1; k <= ARC; k++) { const t = Math.PI + (k / ARC) * (Math.PI / 2); add(-ex + cr * Math.cos(t), -ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
-  add(ex, -lz, 0, 1);                                                         // bottom edge
+  add(ex, -lz, 0, 1);
   for (let k = 1; k < ARC; k++) { const t = 1.5 * Math.PI + (k / ARC) * (Math.PI / 2); add(ex + cr * Math.cos(t), -ez + cr * Math.sin(t), -Math.cos(t), -Math.sin(t)); }
-  // (loop closes back to path[0] = (lx,-ez), the final BR-arc point)
+  return path;
+}
+
+function makePerimeterGeometry(lx: number, lz: number, cr: number, transitionH: number, wallH: number): THREE.BufferGeometry {
+  const R = transitionH;
+  // Cross-section: tight quarter-circle transition, then a true vertical wall.
+  // With no inward-facing deck at the top there is nothing for the rider to
+  // catch, boink, or flip against.
+  const PROF = 16;
+  const prof: { inw: number; y: number }[] = [];
+  for (let j = 0; j <= PROF; j++) {
+    const a = (j / PROF) * (Math.PI / 2);
+    prof.push({ inw: R * Math.cos(a), y: R * (1 - Math.cos(a)) });
+  }
+  prof.push({ inw: 0, y: wallH });
+
+  const path = perimeterPath(lx, lz, cr);
 
   const N = path.length, M = prof.length;
   const vAt = (i: number, j: number): [number, number, number] => {
@@ -178,6 +191,24 @@ function makePerimeterGeometry(lx: number, lz: number, cr: number, h: number): T
       const a = vAt(i, j), b = vAt(i2, j), c = vAt(i2, j + 1), d = vAt(i, j + 1);
       verts.push(...a, ...c, ...b, ...a, ...d, ...c); // inward/up facing
     }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Visual concrete coping/cap. It projects outward, never over the ride face. */
+function makePerimeterCapGeometry(lx: number, lz: number, cr: number, y: number, depth: number): THREE.BufferGeometry {
+  const path = perimeterPath(lx, lz, cr);
+  const verts: number[] = [];
+  for (let i = 0; i < path.length; i++) {
+    const a = path[i], b = path[(i + 1) % path.length];
+    const ai: [number, number, number] = [a.x, y, a.z];
+    const bi: [number, number, number] = [b.x, y, b.z];
+    const ao: [number, number, number] = [a.x - a.nx * depth, y, a.z - a.nz * depth];
+    const bo: [number, number, number] = [b.x - b.nx * depth, y, b.z - b.nz * depth];
+    verts.push(...ai, ...bi, ...bo, ...ai, ...bo, ...ao);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
@@ -1123,23 +1154,27 @@ vec3 triplanarColor() {
     this.scene.add(pad);
   }
 
-  /**
-   * The whole boundary is one continuous curved transition (rounded rect),
-   * so you ride the edge like a bowl wall instead of smashing a flat wall.
-   * The position clamp (controller.bounds) is the backstop above the lip.
-   */
+  /** Low transition + tall concrete retaining wall around the rounded map. */
   private buildCurvedPerimeter(): void {
     const lx = this.bounds.x + 0.5;
     const lz = this.bounds.z + 0.5;
     const cr = Math.min(16, this.bounds.x * 0.5, this.bounds.z * 0.5);
-    const geo = makePerimeterGeometry(lx, lz, cr, PERIMETER_H);
-    const mat = new THREE.MeshLambertMaterial({ color: this.theme.ramp, flatShading: true, side: THREE.DoubleSide });
-    this.applyTriplanar(mat, this.woodTexture(), 0.5);
+    const geo = makePerimeterGeometry(lx, lz, cr, PERIMETER_TRANSITION_H, PERIMETER_WALL_H);
+    const mat = new THREE.MeshLambertMaterial({ color: this.theme.groundDark, flatShading: true, side: THREE.DoubleSide });
+    this.applyTriplanar(mat, this.concreteTexture(), 0.32);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.scene.add(mesh);
     this.physics.addTrimesh(geo, new THREE.Vector3(0, 0, 0), new THREE.Quaternion());
+
+    // Cap is visual-only and lives entirely outside the wall. Keeping it out
+    // of the rideable volume removes the old top-edge collision/flip hazard.
+    const capGeo = makePerimeterCapGeometry(lx, lz, cr, PERIMETER_WALL_H, PERIMETER_CAP_DEPTH);
+    const cap = new THREE.Mesh(capGeo, mat);
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+    this.scene.add(cap);
   }
 
   private buildLampPosts(): void {

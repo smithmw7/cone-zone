@@ -313,6 +313,18 @@ canvas.game-canvas {
   justify-content: safe center;
   scroll-snap-type: x proximity;
   scroll-padding-inline: 16px;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  cursor: grab;
+}
+
+.screen-levels .select-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.screen-levels .select-grid.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
 }
 
 .level-card {
@@ -613,9 +625,18 @@ canvas.game-canvas {
 /* coin balance */
 
 .coin-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 15px;
   font-weight: 900;
   color: var(--orange-dark);
+}
+
+.coin-balance .ui-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
 }
 
 .coin-balance.pill {
@@ -1774,7 +1795,7 @@ input {
   font-size: 16px;
 }
 
-.coin-balance.pill::before { content: 'SB '; color: var(--sb-tomato); }
+.coin-balance.pill .ui-icon { width: 27px; height: 27px; }
 
 /* Looks ------------------------------------------------------------------- */
 
@@ -1872,8 +1893,6 @@ input {
 .level-card[data-level="aqueduct-city"] .level-preview { background: linear-gradient(#79a8c4 0 42%, #69747c 42% 63%, #a9a7a0 63%); }
 .level-card[data-level="sunset-harbor"] .level-preview { background: linear-gradient(#e37e61 0 40%, #d6a552 40% 57%, #4c8ba4 57%); }
 .level-card .card-name { margin: 0; padding: 17px 17px 5px; font-family: var(--font-display); font-size: 34px; line-height: 1; text-align: left; }
-.level-tags { display: flex; gap: 7px; padding: 8px 17px 18px; }
-.level-tags span { padding: 4px 7px; border: 2px solid var(--sb-char); border-radius: 5px; background: var(--sb-cheese); font-size: 10px; font-weight: 900; letter-spacing: .05em; }
 
 /* HUD --------------------------------------------------------------------- */
 
@@ -1978,8 +1997,8 @@ input {
 .music-title { font-family: var(--font-display); font-size: 28px; font-weight: 400; }
 .shop-head .btn,
 .music-head .btn { width: 43px; min-height: 43px; display: grid; place-items: center; padding: 7px; }
-.shop-balance { padding: 11px; color: var(--sb-tomato); font-size: 17px; border-bottom: 2px solid rgba(40,34,31,.15); }
-.shop-balance::before { content: 'SB '; }
+.shop-balance { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; color: var(--sb-char); font-size: 17px; font-weight: 900; border-bottom: 2px solid rgba(40,34,31,.15); }
+.shop-balance .ui-icon { width: 28px; height: 28px; }
 .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; padding: 18px 15px 8px; }
 .coinpack { padding: 15px 10px 11px; border: 2px solid var(--sb-char); border-radius: 11px; background: var(--sb-mayo); box-shadow: 0 4px 0 var(--sb-char); }
 .coinpack-badge { top: -9px; border: 2px solid var(--sb-char); border-radius: 5px; background: var(--sb-tomato); box-shadow: none; }

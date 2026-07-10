@@ -92,6 +92,67 @@ function uiIcon(name: string, parent?: HTMLElement, className = 'ui-icon'): SVGS
   return svg;
 }
 
+function setCoinBalance(node: HTMLElement, amount: number): void {
+  node.replaceChildren();
+  uiIcon('token', node);
+  el('span', 'coin-balance-value', node, amount.toLocaleString());
+}
+
+/** Keep horizontal carousels usable with a mouse as well as touch swipes. */
+function enableHorizontalDrag(scroller: HTMLElement): void {
+  let pointerId: number | null = null;
+  let startX = 0;
+  let startScrollLeft = 0;
+  let dragged = false;
+  let suppressClick = false;
+
+  scroller.addEventListener('pointerdown', (e) => {
+    // Touch gets smoother native momentum scrolling via `touch-action: pan-x`.
+    if (e.pointerType === 'touch' || e.button !== 0) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startScrollLeft = scroller.scrollLeft;
+    dragged = false;
+  });
+
+  scroller.addEventListener('pointermove', (e) => {
+    if (pointerId !== e.pointerId) return;
+    const distance = e.clientX - startX;
+    if (!dragged && Math.abs(distance) < 5) return;
+    if (!dragged) {
+      dragged = true;
+      scroller.classList.add('is-dragging');
+      scroller.setPointerCapture(e.pointerId);
+    }
+    scroller.scrollLeft = startScrollLeft - distance;
+    e.preventDefault();
+  });
+
+  const finishDrag = (e: PointerEvent) => {
+    if (pointerId !== e.pointerId) return;
+    if (dragged) {
+      suppressClick = true;
+      window.setTimeout(() => (suppressClick = false), 150);
+    }
+    pointerId = null;
+    dragged = false;
+    scroller.classList.remove('is-dragging');
+  };
+
+  scroller.addEventListener('pointerup', finishDrag);
+  scroller.addEventListener('pointercancel', finishDrag);
+  scroller.addEventListener(
+    'click',
+    (e) => {
+      if (!suppressClick) return;
+      e.preventDefault();
+      e.stopPropagation();
+      suppressClick = false;
+    },
+    true,
+  );
+}
+
 export class UIManager {
   // touch input flags, read by GameApp every frame
   touchSteer = 0;
@@ -178,7 +239,6 @@ export class UIManager {
     music.addEventListener('click', () => this.openMusicPlayer());
     const wallet = el('button', 'wallet-ticket', top);
     wallet.setAttribute('aria-label', 'Open Grill Shop');
-    uiIcon('token', wallet);
     this.balanceEls.push(el('span', 'coin-balance', wallet, ''));
     wallet.addEventListener('click', () => this.openShop());
 
@@ -361,7 +421,7 @@ export class UIManager {
   }
 
   refreshBalances(): void {
-    for (const b of this.balanceEls) b.textContent = this.economy.coins.toLocaleString();
+    for (const b of this.balanceEls) setCoinBalance(b, this.economy.coins);
   }
 
   /* ---------------------------------------------------------- */
@@ -383,6 +443,7 @@ export class UIManager {
 
     const panel = el('div', 'select-panel', s);
     const grid = el('div', 'select-grid', panel);
+    enableHorizontalDrag(grid);
     LEVELS.forEach((lvl, index) => {
       const card = el('button', 'select-card level-card', grid);
       card.dataset.level = lvl.id;
@@ -390,9 +451,6 @@ export class UIManager {
       el('span', 'level-number', preview, String(index + 1).padStart(2, '0'));
       el('div', 'level-horizon', preview);
       el('div', 'card-name', card, lvl.id === 'cone-park' ? 'Grill Yard' : lvl.name);
-      const tags = el('div', 'level-tags', card);
-      el('span', '', tags, lvl.physics?.speedMul ? 'FAST' : 'FLOW');
-      el('span', '', tags, index === 0 ? 'EASY LINES' : index % 2 ? 'BIG AIR' : 'TECH');
       card.addEventListener('click', () => this.cb.onLevelPicked(lvl.id));
     });
     // A mouse wheel won't scroll a horizontal overflow (and macOS hides the

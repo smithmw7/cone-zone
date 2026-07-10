@@ -99,7 +99,7 @@ export class GameApp {
     });
 
     this.ui = new UIManager(this.container, this.state, this.economy, {
-      onPlay: () => this.setMode('levels'),
+      onPlay: () => this.setMode('customize'),
       onSkate: () => this.setMode('levels'),
       onLevelPicked: (id) => {
         void this.loadLevel(levelById(id)).then(() => this.startRun());
@@ -160,6 +160,10 @@ export class GameApp {
       () => this.score.consumeSpecial(),
     );
     this.controller.bounds = config.bounds;
+    this.controller.boundaryCornerRadius = Math.max(
+      0.5,
+      Math.min(16, config.bounds.x * 0.5, config.bounds.z * 0.5) - 0.5,
+    );
     this.controller.levelSpeedMul = config.physics?.speedMul ?? 1;
     this.controller.levelTurnMul = config.physics?.turnMul ?? 1;
     this.physics.createPlayerBody(this.park.spawnPoint);

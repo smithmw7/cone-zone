@@ -80,6 +80,8 @@ export class PlayerController {
   mode: Mode = 'air';
   /** per-level clamp half-extents + feel multipliers (set on level load) */
   bounds = { x: 67.5, z: 47.5 };
+  /** Radius of the safety backstop's rounded corners (inside wall face). */
+  boundaryCornerRadius = 15.5;
   levelSpeedMul = 1;
   levelTurnMul = 1;
 
@@ -660,17 +662,39 @@ export class PlayerController {
 
   private clampToBounds(): void {
     const softBounce = 0.4;
-    if (Math.abs(this.pos.x) > this.bounds.x) {
+    const r = Math.max(0, Math.min(this.boundaryCornerRadius, this.bounds.x, this.bounds.z));
+    const ax = Math.abs(this.pos.x), az = Math.abs(this.pos.z);
+    const cx = this.bounds.x - r, cz = this.bounds.z - r;
+    let nx = 0, nz = 0;
+
+    if (ax > cx && az > cz && r > 0) {
+      // Rounded corner: project onto the actual inset wall arc and reflect
+      // across its radial normal. This closes the square-clamp escape pocket.
+      const dx = ax - cx, dz = az - cz;
+      const dist = Math.hypot(dx, dz);
+      if (dist > r) {
+        const sx = Math.sign(this.pos.x), sz = Math.sign(this.pos.z);
+        nx = -sx * dx / dist;
+        nz = -sz * dz / dist;
+        this.pos.x = sx * (cx + dx * r / dist);
+        this.pos.z = sz * (cz + dz * r / dist);
+      }
+    } else if (ax > this.bounds.x) {
+      nx = -Math.sign(this.pos.x);
       this.pos.x = Math.sign(this.pos.x) * this.bounds.x;
-      this.vel.x *= -softBounce;
-      this.yaw = Math.atan2(this.vel.x, this.vel.z || 0.001);
-      this.speed *= 0.5;
-    }
-    if (Math.abs(this.pos.z) > this.bounds.z) {
+    } else if (az > this.bounds.z) {
+      nz = -Math.sign(this.pos.z);
       this.pos.z = Math.sign(this.pos.z) * this.bounds.z;
-      this.vel.z *= -softBounce;
-      this.yaw = Math.atan2(this.vel.x || 0.001, this.vel.z);
+    }
+
+    if (nx !== 0 || nz !== 0) {
+      const into = this.vel.x * nx + this.vel.z * nz;
+      if (into < 0) {
+        this.vel.x -= (1 + softBounce) * into * nx;
+        this.vel.z -= (1 + softBounce) * into * nz;
+      }
       this.speed *= 0.5;
+      this.yaw = Math.atan2(this.vel.x || nx, this.vel.z || nz);
     }
   }
 
