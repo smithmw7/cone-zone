@@ -34,6 +34,9 @@ function buildConePark(p: SkateParkScene): void {
   p.moduleFunbox(26, 8, 0, 1, 9, 5);
   p.moduleRail(26, 0.6, -8, 26, 0.6, -22);
 
+  // Burger Shack drive-through in the middle of the park.
+  p.moduleBurgerShack(0, -4, 0);
+
   // North landing zone off the drop-in: spine + flanking pyramids.
   p.moduleSpine(0, -20, Math.PI / 2, 1, 14);
   p.modulePyramid(-30, -26, 2);
@@ -88,6 +91,9 @@ function buildMegaCanyon(p: SkateParkScene): void {
   p.moduleKicker(-58, 6, Math.PI / 2, 5, 16);
   p.moduleKicker(-30, 6, -Math.PI / 2, 5, 16);
 
+  // Burger Shack drive-through in the middle of the canyon.
+  p.moduleBurgerShack(0, 4, 0);
+
   // Center landing zone off the drop-in.
   p.moduleSpine(0, -8, Math.PI / 2, 2, 18);
   p.modulePyramid(0, -40, 3);
@@ -100,8 +106,8 @@ function buildMegaCanyon(p: SkateParkScene): void {
   p.moduleRail(82, 6.5, -18, 82, 6.5, 6);              // east-rim grind line
 
   // Transitions on the wings.
-  p.moduleBowl(-30, 36, 3);
-  p.moduleBowl(34, 40, 2);
+  p.moduleBowl(-66, -30, 3);
+  p.moduleBowl(60, -40, 2);
   p.moduleHalfPipe(-66, 30, 3, 26, 10);
 
   // Chain lines on the flanks: pad→rail→ledge (west), stairs+hubba (east).
@@ -121,15 +127,15 @@ function buildMegaCanyon(p: SkateParkScene): void {
     // plateau line: bank approach → deck → launch air → east rim
     [44, 1.3, -6], [64, 7, -6], [64, 9, 16], [82, 7, -6],
     // bowls + halfpipe
-    [-30, 1.3, 36], [34, 1.3, 40], [-66, 1.3, 30], [-66, 4, 30],
+    [-66, 1.3, -30], [60, 1.3, -40], [-66, 1.3, 30], [-66, 4, 30],
     // flank chains
     [-44, 1.3, 46], [-44, 1.3, 32], [-44, 1.4, 10], [42, 2.4, 44], [42, 1.3, 52],
     // cruisers
-    [-20, 1.2, 50], [20, 1.2, 50], [-70, 1.2, -20], [60, 1.2, 34], [0, 1.2, -30],
+    [-20, 1.2, 50], [20, 1.2, 50], [-70, 1.2, -20], [30, 1.2, 34], [0, 1.2, -30],
   ]);
   p.placeBoostOrbs([
-    [0, 1, 44], [0, 1, -14], [-44, 1, 6], [64, 6.8, -6], [-30, 1, 36],
-    [34, 1, 40], [-66, 1, 30], [-44, 1, 32], [42, 1, 46], [0, 1, -40], [44, 1, -6],
+    [0, 1, 44], [0, 1, -14], [-44, 1, 6], [64, 6.8, -6], [-66, 1, -30],
+    [60, 1, -40], [-66, 1, 30], [-44, 1, 32], [42, 1, 46], [0, 1, -40], [44, 1, -6],
   ]);
 }
 
@@ -166,6 +172,7 @@ function buildPowderPeak(p: SkateParkScene): void {
   // The flats (south): a mega drop-in to session, plus bowls, halfpipe and
   // rails off to the sides so the x≈0 spawn lane stays clean.
   p.moduleDropIn(0, 20, Math.PI, 5, 18);
+  p.moduleBurgerShack(0, 0, 0);
   p.moduleHalfPipe(-60, 30, 3, 24, 10);
   p.moduleBowl(50, 30, 2);
   p.moduleBowl(-30, 46, 1);
@@ -222,7 +229,10 @@ function basicPark(p: SkateParkScene, X: number, Z: number): void {
   p.moduleFunbox(kx, Z * 0.08, 0, 1, 9, 5);
   p.moduleRail(kx, 0.6, -Z * 0.08, kx, 0.6, -Z * 0.28);
 
-  // Center + north landing.
+  // Center: the Burger Shack drive-through (drop-in landing flows into it).
+  p.moduleBurgerShack(0, -4, 0);
+
+  // North landing.
   p.moduleSpine(0, -Z * 0.22, Math.PI / 2, 1, 14);
   p.modulePyramid(-X * 0.5, -Z * 0.55, 2);
   p.modulePyramid(X * 0.5, -Z * 0.55, 2);
@@ -276,7 +286,7 @@ function buildCanopyRun(p: SkateParkScene): void {
 function buildRedwoodCoast(p: SkateParkScene): void {
   basicPark(p, 80, 54);
   // A second, taller mega drop-in on the west + a long coastal rail.
-  p.moduleDropIn(-46, 6, Math.PI / 2, 6, 16);
+  p.moduleDropIn(-46, -16, Math.PI / 2, 6, 16);
   p.moduleRail(0, 0.6, 44, 0, 0.6, 20);
 }
 
@@ -284,9 +294,9 @@ function buildRedwoodCoast(p: SkateParkScene): void {
 function buildAqueductCity(p: SkateParkScene): void {
   basicPark(p, 88, 60);
   // The "highway": long parallel elevated grind rails you can bomb.
-  p.moduleLedge(-58, 8, Math.PI / 2, 40, 1.2);
-  p.moduleRail(-58, 1.7, 26, -58, 1.7, -14);
-  p.moduleRail(58, 1.2, 30, 58, 1.2, -18);
+  p.moduleLedge(-44, 8, Math.PI / 2, 40, 1.2);
+  p.moduleRail(-44, 1.7, 26, -44, 1.7, -14);
+  p.moduleRail(44, 1.2, 30, 44, 1.2, -18);
   p.moduleStairs(-30, 46, Math.PI, 2, 12);
 }
 

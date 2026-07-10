@@ -683,6 +683,22 @@ export class UIManager {
     setTimeout(() => node.remove(), 1100);
   }
 
+  /** Cash-in celebration: a burst of coins flies up to the top HUD + a callout. */
+  coinFlyout(amount: number): void {
+    const layer = this.popupLayer;
+    const callout = el('div', 'coin-callout', layer, `🍔 +${amount.toLocaleString()} 🪙`);
+    setTimeout(() => callout.remove(), 1300);
+    const n = Math.min(16, 7 + Math.round(amount / 50));
+    for (let i = 0; i < n; i++) {
+      const c = el('div', 'coin-fly', layer, '🪙');
+      c.style.left = `${44 + Math.random() * 12}%`;
+      c.style.top = `${52 + Math.random() * 12}%`;
+      c.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
+      c.style.animationDelay = `${(i * 0.035).toFixed(2)}s`;
+      setTimeout(() => c.remove(), 1300);
+    }
+  }
+
   /* ---------------------------------------------------------- */
   /* Pause                                                       */
   /* ---------------------------------------------------------- */

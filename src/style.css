@@ -1150,6 +1150,42 @@ canvas.game-canvas {
   100% { opacity: 0; transform: translate(calc(-50% + var(--drift, 0px)), -90px) scale(0.9) rotate(var(--tilt)); }
 }
 
+/* Drive-through cash-in: coins fly up-left to the score; a callout pops. */
+.coin-callout {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  font-size: clamp(24px, 5.2vw, 42px);
+  font-weight: 900;
+  color: #ffe14d;
+  -webkit-text-stroke: 1.6px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: coincallout 1.3s ease-out forwards;
+}
+
+@keyframes coincallout {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+  15% { opacity: 1; transform: translateX(-50%) scale(1.2); }
+  32% { transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -130px) scale(0.95); }
+}
+
+.coin-fly {
+  position: absolute;
+  font-size: 26px;
+  pointer-events: none;
+  animation: coinfly 1.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes coinfly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-40vw + var(--dx, 0px)), -44vh) scale(0.8); }
+}
+
 /* ---------- touch controls ---------- */
 
 .touch-controls {

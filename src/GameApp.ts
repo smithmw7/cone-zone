@@ -64,6 +64,7 @@ export class GameApp {
   private input: InputState = { steer: 0, throttle: 0, jump: false, boost: false, launch: false };
   /** biggest stack built this run (layers incl. the base patty) */
   private tallestBurger = 1;
+  private inDriveThrough = false;
   private paused = false;
 
   constructor(private container: HTMLElement) {
@@ -262,6 +263,7 @@ export class GameApp {
     this.audio.startMusic();
     this.score.startRun();
     this.tallestBurger = 1;
+    this.inDriveThrough = false;
     this.ui.setCoinCount(0, this.park.totalCollectibles);
     this.ui.setBurgerHeight(1);
 
@@ -445,6 +447,25 @@ export class GameApp {
           this.controller.addBoost(0.4 * got.orbs);
           this.ui.trickPopup('Boost ⚡', 0);
           this.audio.orb();
+        }
+
+        // Burger Shack drive-through: driving through the glowing ring with a
+        // stacked burger cashes it in for coins and resets to a bun + patty.
+        {
+          const zone = this.park.driveThrough;
+          const stack = this.playerRig?.stack;
+          if (zone && stack) {
+            const near = this.controller.pos.distanceTo(zone.pos) < zone.radius;
+            if (near && !this.inDriveThrough && stack.count > 1) {
+              const layers = stack.cashIn();
+              const coins = Math.round(layers * 25 + layers * layers * 4);
+              this.economy.addCoins(coins);
+              this.ui.setBurgerHeight(stack.count);
+              this.ui.coinFlyout(coins);
+              this.audio.convert(coins);
+            }
+            this.inDriveThrough = near;
+          }
         }
 
         // Meters.

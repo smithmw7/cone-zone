@@ -799,6 +799,24 @@ export class BurgerStack {
     return def;
   }
 
+  /** CASH IN at the drive-through: the stack is delivered (cleanly removed,
+   *  no debris) and you're back to a bun + patty. Returns the layer count. */
+  cashIn(): number {
+    const n = this.layers.length;
+    for (const l of this.layers) {
+      l.grp.removeFromParent();
+      l.grp.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose();
+          (o.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.layers = [];
+    this.reportHeight();
+    return n;
+  }
+
   /** WIPEOUT: every collected layer detaches and flies; back to bun+patty. */
   wipeout(): number {
     const n = this.layers.length;

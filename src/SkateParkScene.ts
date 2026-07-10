@@ -287,6 +287,10 @@ export class SkateParkScene {
   totalCollectibles = 0;
   sky!: SkySystem;
   private water?: WaterSystem;
+  /** Burger-shack drive-through: enter this zone to cash in your stack. */
+  driveThrough?: { pos: THREE.Vector3; radius: number };
+  private driveGlow: { ring: THREE.Mesh; cyl: THREE.Mesh } | null = null;
+  private stripeTex?: THREE.CanvasTexture;
   readonly bounds: { x: number; z: number };
 
   private collectibles: Collectible[] = [];
@@ -720,6 +724,110 @@ vec3 triplanarColor() {
     this.register(g);
   }
 
+  /* ---------------- Burger Shack drive-through ---------------- */
+
+  private stripeTexture(): THREE.CanvasTexture {
+    if (this.stripeTex) return this.stripeTex;
+    this.stripeTex = texFromCanvas((ctx, s) => {
+      const n = 6, cw = s / n;
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = i % 2 ? '#f4efe2' : '#d8342b';
+        ctx.fillRect(i * cw, 0, cw, s);
+      }
+    });
+    return this.stripeTex;
+  }
+
+  private buildRoofBurger(): THREE.Group {
+    const g = new THREE.Group();
+    const add = (m: THREE.Mesh, y: number) => { m.position.y = y; m.castShadow = true; g.add(m); };
+    add(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.0, 0.5, 16), this.mat(0xe0a04e)), 0.25);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.4, 16), this.mat(0x7a4426)), 0.65);
+    const cheese = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.16, 1.95), this.mat(0xf9c440));
+    cheese.rotation.y = Math.PI / 4; add(cheese, 0.9);
+    const lettuce = new THREE.Mesh(new THREE.SphereGeometry(1.32, 14, 8), this.mat(0x77c04b));
+    lettuce.scale.y = 0.2; add(lettuce, 1.05);
+    const top = new THREE.Mesh(new THREE.SphereGeometry(1.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), this.mat(0xe0a04e));
+    top.scale.y = 0.72; add(top, 1.15);
+    const seedMat = this.mat(0xf7ecd2);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + (i % 2);
+      const r = 0.3 + (i % 3) * 0.28;
+      const seed = new THREE.Mesh(new THREE.SphereGeometry(0.08, 5, 4), seedMat);
+      seed.position.set(Math.cos(a) * r, 1.15 + Math.sqrt(Math.max(0, 1.25 * 1.25 - r * r)) * 0.72, Math.sin(a) * r);
+      g.add(seed);
+    }
+    return g;
+  }
+
+  /**
+   * Red-and-white striped burger shack with a big burger on the roof and a
+   * glowing drive-through drop-off out front. Driving through the ring cashes
+   * in your stack (GameApp reads `driveThrough`).
+   */
+  moduleBurgerShack(x: number, z: number, yaw: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const white = this.mat(0xf4efe2);
+    const striped = new THREE.MeshLambertMaterial({ map: this.stripeTexture(), flatShading: true });
+
+    const bw = 7, bh = 4, bd = 5;
+    const wall = this.solidMesh(new THREE.BoxGeometry(bw, bh, bd), striped, 'box');
+    wall.position.set(0, bh / 2, -2.6);
+    g.add(wall);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.7, 0.25), this.mat(0x2a2f3a));
+    win.position.set(0, 2.1, -0.08);
+    g.add(win);
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.3, 0.6), white);
+    counter.position.set(0, 1.2, 0.1);
+    g.add(counter);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.5, bd + 0.6), white);
+    roof.position.set(0, bh + 0.2, -2.6);
+    roof.castShadow = true;
+    g.add(roof);
+
+    // Striped awning on posts over the drive-through lane.
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.3, 3), striped);
+    awning.position.set(0, 3.1, 0.7);
+    awning.rotation.x = -0.14;
+    awning.castShadow = true;
+    g.add(awning);
+    for (const sx of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.1, 6), white);
+      post.position.set(sx * (bw / 2 - 0.4), 1.55, 1.9);
+      g.add(post);
+    }
+
+    const burger = this.buildRoofBurger();
+    burger.position.set(0, bh + 0.5, -2.6);
+    g.add(burger);
+
+    this.register(g); // only the wall has a collider
+
+    // Glowing drop-off zone out front (+z local).
+    const zone = new THREE.Vector3(0, 0, 3.4).applyEuler(new THREE.Euler(0, yaw, 0)).add(new THREE.Vector3(x, 0, z));
+    const glow = new THREE.Group();
+    glow.position.copy(zone);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(3, 0.24, 10, 30),
+      new THREE.MeshBasicMaterial({ color: 0xffe14d }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.2;
+    const cyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(3, 3, 9, 26, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xffe14d, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    cyl.position.y = 4.5;
+    glow.add(ring, cyl);
+    glow.userData.noWireframe = true;
+    glow.userData.hideInDebug = true;
+    this.scene.add(glow);
+    this.driveGlow = { ring, cyl };
+    this.driveThrough = { pos: zone, radius: 3.4 };
+  }
+
   private pushRail(a: THREE.Vector3, b: THREE.Vector3, label: 'rail' | 'lip' = 'rail'): void {
     const dir = b.clone().sub(a);
     const length = dir.length();
@@ -1128,6 +1236,12 @@ vec3 triplanarColor() {
       this.water.update(this.elapsed);
       const fog = this.scene.fog as THREE.Fog | null;
       if (fog) this.water.setFog(fog.color.getHex()); // match the current sky
+    }
+    if (this.driveGlow) {
+      const { ring, cyl } = this.driveGlow;
+      ring.rotation.z += dt * 1.4;
+      ring.position.y = 0.25 + Math.sin(this.spinTime * 3) * 0.18;
+      (cyl.material as THREE.MeshBasicMaterial).opacity = 0.12 + Math.abs(Math.sin(this.spinTime * 2)) * 0.1;
     }
     let coins = 0;
     for (const c of this.collectibles) {
