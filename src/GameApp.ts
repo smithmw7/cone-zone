@@ -50,6 +50,8 @@ export class GameApp {
   private previewScene!: THREE.Scene;
   private previewRig: CharacterRig | null = null;
   private previewSpin = 0;
+  private previewPodium!: THREE.Mesh;
+  private previewFloor!: THREE.Mesh;
 
   // gameplay (rebuilt per level by loadLevel)
   private park!: SkateParkScene;
@@ -97,7 +99,7 @@ export class GameApp {
     });
 
     this.ui = new UIManager(this.container, this.state, this.economy, {
-      onPlay: () => this.setMode('customize'),
+      onPlay: () => this.setMode('levels'),
       onSkate: () => this.setMode('levels'),
       onLevelPicked: (id) => {
         void this.loadLevel(levelById(id)).then(() => this.startRun());
@@ -206,7 +208,7 @@ export class GameApp {
           // off as physics debris and you're back to a basic bun + patty.
           const flew = this.playerRig?.stack?.wipeout() ?? 0;
           if (flew > 0) {
-            this.ui.trickPopup('🍔 BURGER DOWN!', 0);
+            this.ui.trickPopup('BURGER DOWN', 0);
             this.ui.setBurgerHeight(this.playerRig?.stack?.count ?? 1);
           }
           this.audio.bonk();
@@ -226,16 +228,24 @@ export class GameApp {
       case 'start':
         this.score.stop();
         this.audio.stopMusic();
+        this.rebuildHomeHero();
+        this.previewPodium.visible = false;
+        this.previewFloor.visible = false;
         this.ui.show('start');
         break;
       case 'customize':
         this.score.stop();
+        this.previewPodium.visible = true;
+        this.previewFloor.visible = true;
         this.rebuildPreview();
         this.ui.syncCustomizeChips(); // highlight the chips for the current state
         this.ui.show('customize');
         break;
       case 'levels':
         this.score.stop();
+        this.previewPodium.visible = true;
+        this.previewFloor.visible = true;
+        this.rebuildPreview();
         this.ui.show('levels');
         break;
       case 'play':
@@ -320,7 +330,23 @@ export class GameApp {
 
   private buildPreviewScene(): void {
     this.previewScene = new THREE.Scene();
-    this.previewScene.background = new THREE.Color(0x7fc4ff);
+    const sky = document.createElement('canvas');
+    sky.width = 16;
+    sky.height = 256;
+    const ctx = sky.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, sky.height);
+      gradient.addColorStop(0, '#4299e8');
+      gradient.addColorStop(0.48, '#77c3f3');
+      gradient.addColorStop(1, '#d9f1ff');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, sky.width, sky.height);
+      const texture = new THREE.CanvasTexture(sky);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.previewScene.background = texture;
+    } else {
+      this.previewScene.background = new THREE.Color(0x77c3f3);
+    }
 
     const hemi = new THREE.HemisphereLight(0xd6ecff, 0x9a8a68, 1.0);
     const key = new THREE.DirectionalLight(0xfff2d8, 1.3);
@@ -337,6 +363,7 @@ export class GameApp {
     podium.position.y = -0.18;
     podium.receiveShadow = true;
     this.previewScene.add(podium);
+    this.previewPodium = podium;
     const floor = new THREE.Mesh(
       new THREE.CylinderGeometry(30, 30, 0.2, 24),
       new THREE.MeshLambertMaterial({ color: 0x6cbf5a }),
@@ -344,6 +371,26 @@ export class GameApp {
     floor.position.y = -0.5;
     floor.receiveShadow = true;
     this.previewScene.add(floor);
+    this.previewFloor = floor;
+  }
+
+  /** Title-screen beauty shot: base patty, cheese, lettuce, bacon, pickle, tomato. */
+  private rebuildHomeHero(): void {
+    this.previewRig?.dispose();
+    const heroState = new CustomizationState();
+    heroState.board = 'default';
+    heroState.wheelColor = 0xffd21f;
+    heroState.accessory = 'none';
+    heroState.glasses = 'none';
+    this.previewRig = buildCharacter(heroState);
+    for (const topping of ['cheese', 'lettuce', 'bacon', 'pickle', 'tomato']) {
+      this.previewRig.stack?.addTopping(topping, true);
+    }
+    this.previewRig.stack?.setShowcaseLayout();
+    this.previewRig.root.position.set(0, 0.82, 0);
+    this.previewRig.root.rotation.set(-0.08, -0.5, -0.14);
+    this.previewRig.tilt.rotation.x = 0.18;
+    this.previewScene.add(this.previewRig.root);
   }
 
   private rebuildPreview(): void {
@@ -399,8 +446,63 @@ export class GameApp {
   /* ------------------------------------------------------------ */
 
   private tick(): void {
-    const dt = Math.min(this.clock.getDelta(), 1 / 30); // clamp tab-switch spikes
+    this.runFrame(Math.min(this.clock.getDelta(), 1 / 30));
+  }
+
+  /** Deterministic stepping hook for automated gameplay and UI validation. */
+  advanceTime(ms: number): void {
+    const frames = Math.max(1, Math.round(ms / (1000 / 60)));
+    for (let i = 0; i < frames; i++) this.runFrame(1 / 60);
+  }
+
+  /** Concise, player-relevant state; coordinates are X/Z ground plane, +Y up. */
+  renderToText(): string {
+    const playing = (this.mode === 'play' || this.mode === 'results') && !!this.controller;
+    return JSON.stringify({
+      coordinateSystem: 'Three.js world: +X right, +Y up, +Z forward',
+      mode: this.mode,
+      paused: this.paused,
+      level: this.currentLevelId,
+      score: this.score?.score ?? 0,
+      timeLeft: this.score?.timeLeft ?? 0,
+      stackHeight: this.playerRig?.stack?.count ?? 1,
+      toppingCrates: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
+      player: playing ? {
+        x: Number(this.controller.pos.x.toFixed(2)),
+        y: Number(this.controller.pos.y.toFixed(2)),
+        z: Number(this.controller.pos.z.toFixed(2)),
+        speed: Number(this.controller.horizontalSpeed.toFixed(2)),
+        mode: this.controller.mode,
+        boost: Number(this.controller.boostLevel.toFixed(2)),
+      } : null,
+      touch: {
+        steer: this.ui?.touchSteer ?? 0,
+        launch: this.ui?.touchLaunch ?? false,
+        down: this.ui?.touchDown ?? false,
+        jump: this.ui?.touchJump ?? false,
+        boost: this.ui?.touchBoost ?? false,
+      },
+    });
+  }
+
+  private runFrame(dt: number): void {
     this.elapsed += dt;
+
+    if (this.mode === 'start') {
+      if (this.previewRig) {
+        // A compact mid-air kickturn pose, angled toward the camera.
+        this.previewRig.root.position.y = 0.82 + Math.sin(this.elapsed * 1.8) * 0.07;
+        this.previewRig.root.rotation.y = -0.5 + Math.sin(this.elapsed * 1.2) * 0.08;
+        this.previewRig.root.rotation.z = -0.14 + Math.sin(this.elapsed * 1.8) * 0.025;
+        this.previewRig.tilt.rotation.x = 0.18 + Math.sin(this.elapsed * 1.8) * 0.035;
+        for (const wheel of this.previewRig.wheels) wheel.rotation.x -= dt * 5;
+      }
+      const targetCamera = new THREE.Vector3(0, 1.72, 4.35);
+      this.camera.position.lerp(targetCamera, Math.min(1, dt * 8));
+      this.camera.lookAt(0, 1.78, 0);
+      this.renderer.render(this.previewScene, this.camera);
+      return;
+    }
 
     if (this.mode === 'customize' || this.mode === 'levels') {
       // Showroom: slow turntable spin.
@@ -434,7 +536,7 @@ export class GameApp {
           this.score.coin();
           // The box spins, the reveal pops: a random topping joins the stack.
           const topping = this.playerRig?.stack?.addRandomTopping();
-          if (topping) this.ui.trickPopup(`${topping.emoji} ${topping.label.toUpperCase()}!`, 0);
+          if (topping) this.ui.trickPopup(`+ ${topping.label.toUpperCase()}`, 0);
         }
         if (got.coins > 0) {
           const h = this.playerRig?.stack?.count ?? 1;
@@ -445,7 +547,7 @@ export class GameApp {
         }
         if (got.orbs > 0) {
           this.controller.addBoost(0.4 * got.orbs);
-          this.ui.trickPopup('Boost ⚡', 0);
+          this.ui.trickPopup('BOOST REFILLED', 0);
           this.audio.orb();
         }
 

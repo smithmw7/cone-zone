@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#28221f" />
+  <title>Skate Burger — UI Flow Mockups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Lilita+One&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./mockups.css" />
+</head>
+<body>
+  <main class="prototype-shell">
+    <aside class="prototype-panel">
+      <div class="prototype-brand">
+        <span class="prototype-kicker">UX PROTOTYPE · 390 × 844</span>
+        <h1>Skate Burger</h1>
+        <p>Tap through the whole game loop. The live game is untouched.</p>
+      </div>
+      <nav class="screen-nav" aria-label="Mockup screens">
+        <button data-screen-target="home"><span>01</span> Home</button>
+        <button data-screen-target="onboarding"><span>02</span> First Run</button>
+        <button data-screen-target="looks"><span>03</span> Looks</button>
+        <button data-screen-target="spots"><span>04</span> Spot Select</button>
+        <button data-screen-target="hud"><span>05</span> Gameplay HUD</button>
+        <button data-screen-target="pause"><span>06</span> Pause</button>
+        <button data-screen-target="settings"><span>07</span> Settings</button>
+        <button data-screen-target="tricks"><span>08</span> Trick Book</button>
+        <button data-screen-target="shop"><span>09</span> Shop</button>
+        <button data-screen-target="jukebox"><span>10</span> Jukebox</button>
+        <button data-screen-target="results"><span>11</span> Results</button>
+      </nav>
+      <div class="prototype-note">
+        <strong>Prototype rule</strong>
+        <p>One headline. One primary action. Secondary systems stay one tap away.</p>
+      </div>
+    </aside>
+
+    <section class="device-stage">
+      <div class="device-label"><span id="current-screen-label">01 · HOME</span><span>PORTRAIT</span></div>
+      <div class="phone" aria-live="polite">
+        <div class="speaker"></div>
+        <div class="phone-screen">
+
+          <section class="screen screen-home active" data-screen="home" aria-label="Home screen">
+            <div class="world world-home"></div>
+            <div class="awning" aria-hidden="true"></div>
+            <div class="home-top-actions">
+              <button class="icon-button cream" data-screen-target="jukebox" aria-label="Sound settings"><span class="icon-lines">)))</span></button>
+              <button class="ticket wallet" data-screen-target="shop"><small>WALLET</small><strong>1,000</strong></button>
+            </div>
+            <div class="brand-lockup" aria-label="Skate Burger">
+              <span>SKATE</span>
+              <strong>BURGER</strong>
+              <i></i>
+            </div>
+            <div class="hero-burger large" aria-hidden="true">
+              <div class="bun bun-top"></div><div class="lettuce"></div><div class="cheese"></div><div class="patty"></div><div class="bun bun-bottom"></div><div class="deck"></div><div class="wheel left"></div><div class="wheel right"></div>
+            </div>
+            <div class="home-actions">
+              <div class="best-ticket"><small>BEST ORDER</small><strong>12,450</strong></div>
+              <button class="deck-button primary huge" data-screen-target="spots">DROP IN</button>
+              <div class="quick-actions">
+                <button class="small-action" data-screen-target="looks"><i class="mini-hat"></i><span>LOOKS</span></button>
+                <button class="small-action" data-screen-target="shop"><i class="mini-token">SB</i><span>SHOP</span></button>
+                <button class="small-action" data-screen-target="jukebox"><i class="mini-note">♪</i><span>JUKEBOX</span></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen screen-onboarding" data-screen="onboarding" aria-label="First-run onboarding">
+            <div class="world gameplay-world"></div>
+            <div class="tutorial-shade"></div>
+            <button class="text-button tutorial-skip" data-screen-target="hud">SKIP</button>
+            <div class="tutorial-step"><span class="step-count">1 / 3</span><h2>STEER</h2><p>Drag anywhere on the left side.</p></div>
+            <div class="gesture-zone"><div class="thumb"></div><div class="gesture-line"></div><span>DRAG</span></div>
+            <button class="pop-control tutorial-pop" data-screen-target="hud"><span>POP</span></button>
+            <div class="tutorial-dots"><i class="active"></i><i></i><i></i></div>
+            <button class="deck-button primary tutorial-next" data-tutorial-next>NEXT</button>
+          </section>
+
+          <section class="screen screen-looks" data-screen="looks" aria-label="Customization screen">
+            <div class="world looks-world"></div>
+            <header class="screen-header light">
+              <button class="icon-button cream" data-screen-target="home" aria-label="Back">←</button>
+              <h2>DRESS THE BUN</h2>
+              <button class="ticket wallet compact" data-screen-target="shop"><small>SB</small><strong>1,000</strong></button>
+            </header>
+            <div class="hero-burger customize" aria-hidden="true">
+              <div class="accessory-hat"></div><div class="bun bun-top"></div><div class="lettuce"></div><div class="cheese"></div><div class="patty"></div><div class="bun bun-bottom"></div><div class="deck"></div><div class="wheel left"></div><div class="wheel right"></div>
+            </div>
+            <div class="item-name"><small>HAT</small><strong>GRILL CAP</strong><span class="owned">EQUIPPED</span></div>
+            <div class="bottom-sheet looks-sheet">
+              <div class="category-tabs" role="tablist">
+                <button class="active" aria-label="Hats"><i class="mini-hat"></i></button>
+                <button aria-label="Sunglasses"><i class="mini-shades"></i></button>
+                <button aria-label="Decks"><i class="mini-deck"></i></button>
+                <button aria-label="Wheels"><i class="mini-wheel"></i></button>
+                <button aria-label="Trails"><i class="mini-trail"></i></button>
+              </div>
+              <div class="item-carousel">
+                <button class="item-card"><span>NONE</span></button>
+                <button class="item-card selected"><i class="mini-hat tomato"></i><span>GRILL CAP</span></button>
+                <button class="item-card locked"><i class="chef-hat"></i><span>CHEF</span><b>60</b></button>
+                <button class="item-card locked"><i class="crown"></i><span>CROWN</span><b>250</b></button>
+              </div>
+              <button class="deck-button primary" data-screen-target="spots">RIDE</button>
+            </div>
+          </section>
+
+          <section class="screen screen-spots" data-screen="spots" aria-label="Spot selection screen">
+            <div class="world spots-world"></div>
+            <header class="screen-header light">
+              <button class="icon-button cream" data-screen-target="home" aria-label="Back">←</button>
+              <h2>PICK A SPOT</h2>
+              <span class="header-spacer"></span>
+            </header>
+            <div class="spot-card">
+              <div class="spot-photo"><span class="spot-number">01</span><div class="spot-shack"><i></i></div><div class="spot-ramp"></div></div>
+              <div class="spot-copy"><small>BOARDWALK</small><h3>GRILL YARD</h3><div class="spot-tags"><span>EASY LINES</span><span>FLOW</span></div></div>
+              <div class="spot-progress"><i></i><i class="active"></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="spot-peek left"></div><div class="spot-peek right"></div>
+            <div class="spots-footer"><button class="text-button">CHALLENGES <b>3/5</b></button><button class="deck-button primary" data-screen-target="hud">RIDE HERE</button></div>
+          </section>
+
+          <section class="screen screen-hud" data-screen="hud" aria-label="Gameplay HUD screen">
+            <div class="world gameplay-world"></div>
+            <div class="hud-top-shade"></div>
+            <div class="hud-score"><small>SCORE</small><strong>2,450</strong></div>
+            <div class="timer-ticket">1:55</div>
+            <button class="icon-button cream hud-pause" data-screen-target="pause" aria-label="Pause">Ⅱ</button>
+            <div class="stack-badge"><span class="tiny-burger"></span><strong>×5</strong></div>
+            <div class="topping-toast"><span class="crate-icon"></span><strong>+ TOMATO</strong></div>
+            <div class="trick-stamp"><strong>KICKFLIP</strong><span>×2 · 480</span></div>
+            <div class="combo-ribbon"><small>COMBO</small><strong>×4</strong><i></i></div>
+            <div class="special-ready"><span>★</span><strong>SPECIAL READY</strong></div>
+            <div class="steer-zone"><span>DRAG TO STEER</span><i></i></div>
+            <div class="action-controls"><button class="boost-control"><span>BOOST</span><i></i></button><button class="pop-control"><span>POP</span></button></div>
+          </section>
+
+          <section class="screen overlay-screen" data-screen="pause" aria-label="Pause screen">
+            <div class="world gameplay-world paused"></div>
+            <div class="overlay-dim"></div>
+            <div class="awning modal-awning"></div>
+            <div class="modal pause-modal">
+              <span class="modal-kicker">TAKE FIVE</span><h2>ON BREAK</h2>
+              <button class="deck-button primary" data-screen-target="hud">BACK TO IT</button>
+              <div class="menu-list">
+                <button data-screen-target="tricks"><span>TRICK BOOK</span><b>›</b></button>
+                <button data-screen-target="settings"><span>SETTINGS</span><b>›</b></button>
+                <button data-screen-target="hud"><span>RESTART RUN</span><b>↻</b></button>
+              </div>
+              <button class="text-button danger" data-screen-target="home">QUIT TO SHACK</button>
+            </div>
+          </section>
+
+          <section class="screen paper-screen" data-screen="settings" aria-label="Settings screen">
+            <header class="screen-header dark"><button class="icon-button cream" data-screen-target="pause" aria-label="Back">←</button><h2>SETTINGS</h2><span class="header-spacer"></span></header>
+            <div class="settings-group"><h3>AUDIO</h3><label><span>MUSIC</span><input type="range" min="0" max="100" value="70" /></label><label><span>SOUND</span><input type="range" min="0" max="100" value="85" /></label></div>
+            <div class="settings-group"><h3>PLAY</h3><button class="setting-row"><span>LEFT-HAND CONTROLS</span><i class="toggle"></i></button><button class="setting-row"><span>HAPTICS</span><i class="toggle on"></i></button><button class="setting-row"><span>CAMERA SHAKE</span><i class="toggle on"></i></button></div>
+            <div class="settings-group"><h3>ACCESS</h3><button class="setting-row"><span>REDUCED MOTION</span><i class="toggle"></i></button><button class="setting-row"><span>LARGE HUD</span><i class="toggle"></i></button></div>
+            <small class="version">SKATE BURGER · PROTOTYPE UI 01</small>
+          </section>
+
+          <section class="screen paper-screen" data-screen="tricks" aria-label="Trick book screen">
+            <header class="screen-header dark"><button class="icon-button cream" data-screen-target="pause" aria-label="Back">←</button><h2>TRICK BOOK</h2><span class="header-spacer"></span></header>
+            <div class="trick-tabs"><button class="active">AIR</button><button>GRABS</button><button>GRINDS</button><button>SPECIAL</button></div>
+            <div class="trick-list">
+              <article><span class="trick-icon">↑</span><div><h3>OLLIE</h3><p>Tap <b>POP</b></p></div><strong>BASE</strong></article>
+              <article><span class="trick-icon">↻</span><div><h3>KICKFLIP</h3><p>Tap <b>POP</b> in air</p></div><strong>120</strong></article>
+              <article><span class="trick-icon">←</span><div><h3>HEELFLIP</h3><p>Left + <b>POP</b> in air</p></div><strong>140</strong></article>
+              <article><span class="trick-icon">→</span><div><h3>SHOVE-IT</h3><p>Right + <b>POP</b> in air</p></div><strong>140</strong></article>
+              <article class="locked-trick"><span class="trick-icon">★</span><div><h3>THE 900</h3><p>Fill Special to discover</p></div><strong>LOCKED</strong></article>
+            </div>
+            <div class="tip-ticket"><small>GRILL TIP</small><strong>LAND CLEAN TO KEEP YOUR TOPPINGS.</strong></div>
+          </section>
+
+          <section class="screen paper-screen shop-screen" data-screen="shop" aria-label="Shop screen">
+            <header class="screen-header dark"><button class="icon-button cream" data-screen-target="home" aria-label="Close">×</button><h2>GRILL SHOP</h2><button class="ticket wallet compact"><small>SB</small><strong>1,000</strong></button></header>
+            <div class="shop-hero"><div class="token-stack"><i>SB</i><i>SB</i><i>SB</i></div><div><small>FIRST ORDER</small><h3>WELCOME PACK</h3><p>GRILL CAP + 500 TOKENS</p></div><button>$1.99</button></div>
+            <h3 class="section-label">TOKEN TRAYS</h3>
+            <div class="shop-grid">
+              <article><span class="sb-token">SB</span><strong>500</strong><small>STARTER</small><button>$0.99</button></article>
+              <article class="best"><b>BEST VALUE</b><span class="sb-token">SB</span><strong>1,500</strong><small>FULL TRAY</small><button>$2.99</button></article>
+              <article><span class="sb-token">SB</span><strong>4,000</strong><small>FEAST</small><button>$5.99</button></article>
+              <article><span class="sb-token">SB</span><strong>10,000</strong><small>BANQUET</small><button>$9.99</button></article>
+            </div>
+            <p class="legal-copy">Purchases restore on this account. Prices shown for UX mockup only.</p>
+          </section>
+
+          <section class="screen paper-screen jukebox-screen" data-screen="jukebox" aria-label="Jukebox screen">
+            <header class="screen-header dark"><button class="icon-button cream" data-screen-target="home" aria-label="Back">←</button><h2>JUKEBOX</h2><span class="header-spacer"></span></header>
+            <div class="now-playing"><div class="album-art"><i></i><b>SB</b></div><div><small>NOW PLAYING</small><h3>PACIFIC BOARDWALK</h3><p>Skate Burger Radio</p></div><button class="play-button">Ⅱ</button></div>
+            <div class="equalizer"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <h3 class="section-label">PICK A TRACK</h3>
+            <div class="track-list">
+              <button class="active"><span>01</span><div><strong>PACIFIC BOARDWALK</strong><small>2:14</small></div><b>♪</b></button>
+              <button><span>02</span><div><strong>SUNSET COMBO</strong><small>2:32</small></div><b>›</b></button>
+              <button><span>03</span><div><strong>BLACKTOP HEAT</strong><small>2:04</small></div><b>›</b></button>
+              <button><span>04</span><div><strong>METAL MAYHEM</strong><small>2:45</small></div><b>›</b></button>
+            </div>
+            <div class="volume-dock"><span>VOLUME</span><input type="range" min="0" max="100" value="70" /></div>
+          </section>
+
+          <section class="screen screen-results" data-screen="results" aria-label="Results screen">
+            <div class="world results-world"></div>
+            <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="results-heading"><small>RUN COMPLETE</small><h2>ORDER UP!</h2></div>
+            <div class="hero-burger results-burger" aria-hidden="true"><div class="bun bun-top"></div><div class="lettuce"></div><div class="cheese"></div><div class="patty"></div><div class="bun bun-bottom"></div><div class="deck"></div><div class="wheel left"></div><div class="wheel right"></div></div>
+            <div class="receipt">
+              <div class="receipt-score"><small>SCORE</small><strong>12,450</strong><span class="new-best">NEW BEST</span></div>
+              <div class="receipt-stats"><span><small>TALLEST STACK</small><strong>×8</strong></span><span><small>BEST COMBO</small><strong>×12</strong></span></div>
+              <button class="receipt-more">VIEW FULL RECEIPT <b>+</b></button>
+            </div>
+            <div class="results-actions"><button class="deck-button primary" data-screen-target="hud">AGAIN!</button><button class="deck-button secondary" data-screen-target="looks">LOOKS</button><button class="text-button" data-screen-target="home">HOME</button></div>
+          </section>
+        </div>
+      </div>
+      <div class="flow-controls"><button id="previous-screen">← PREV</button><span>Use the side list or tap through the prototype</span><button id="next-screen">NEXT →</button></div>
+    </section>
+  </main>
+  <script src="./mockups.js"></script>
+</body>
+</html>

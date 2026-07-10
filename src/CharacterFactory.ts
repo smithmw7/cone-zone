@@ -791,12 +791,56 @@ export class BurgerStack {
 
   addRandomTopping(): ToppingDef {
     const def = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];
+    return this.addDef(def, false);
+  }
+
+  /** Add a specific layer. `instant` is used by the non-gameplay home hero. */
+  addTopping(id: string, instant = false): ToppingDef | null {
+    const def = TOPPINGS.find((candidate) => candidate.id === id);
+    if (!def) return null;
+    return this.addDef(def, instant);
+  }
+
+  private addDef(def: ToppingDef, instant: boolean): ToppingDef {
     const grp = def.build();
-    grp.scale.setScalar(0.01); // pops in via `pop`
+    grp.scale.setScalar(instant ? 1 : 0.01); // gameplay layers pop in
     this.parts.group.add(grp);
-    this.layers.push({ grp, def, off: new THREE.Vector2(), vel: new THREE.Vector2(), pop: 0 });
+    this.layers.push({ grp, def, off: new THREE.Vector2(), vel: new THREE.Vector2(), pop: instant ? 1 : 0 });
+    if (instant) this.layoutStatic();
     this.reportHeight();
     return def;
+  }
+
+  /** Exact, centered stack placement for the title-screen beauty shot. */
+  private layoutStatic(): void {
+    let y = this.parts.baseTop;
+    for (const layer of this.layers) {
+      layer.grp.position.set(0, y, 0);
+      layer.grp.rotation.set(0, 0, 0);
+      layer.grp.scale.setScalar(1);
+      y += layer.def.h;
+    }
+    this.parts.topBun.position.set(0, y, 0);
+    this.parts.topBun.rotation.set(0, 0, 0);
+  }
+
+  /** Exaggerated but correctly ordered layers for the title-screen close-up. */
+  setShowcaseLayout(): void {
+    let y = this.parts.baseTop;
+    for (const layer of this.layers) {
+      const thickness = layer.def.id === 'cheese' || layer.def.id === 'bacon'
+        ? 2
+        : layer.def.id === 'pickle' || layer.def.id === 'tomato'
+          ? 1.6
+          : 1.25;
+      layer.grp.position.set(0, y, 0);
+      layer.grp.rotation.set(0, 0, 0);
+      layer.grp.scale.set(1, thickness, 1);
+      y += layer.def.h * thickness + 0.024;
+    }
+    this.parts.topBun.position.set(0, y, 0);
+    this.parts.topBun.rotation.set(0, 0, 0);
+    this.reportHeight();
   }
 
   /** CASH IN at the drive-through: the stack is delivered (cleanly removed,

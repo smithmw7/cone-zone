@@ -2,6 +2,11 @@
  * Entry point: boot the game app (async because Rapier's WASM module
  * needs to initialize before the physics world exists).
  */
+import '@fontsource/lilita-one/latin-400.css';
+import '@fontsource/barlow-condensed/latin-600.css';
+import '@fontsource/barlow-condensed/latin-700.css';
+import '@fontsource/barlow-condensed/latin-800.css';
+import '@fontsource/barlow-condensed/latin-900.css';
 import './style.css';
 import { GameApp } from './GameApp';
 
@@ -27,11 +32,18 @@ document.addEventListener(
 );
 
 const app = new GameApp(container);
-// Debug handle for poking at the running game from the console.
-(window as unknown as { coneZone: GameApp }).coneZone = app;
+// Debug/test handles used by the deterministic web-game validation loop.
+const debugWindow = window as unknown as {
+  skateBurger: GameApp;
+  render_game_to_text: () => string;
+  advanceTime: (ms: number) => void;
+};
+debugWindow.skateBurger = app;
+debugWindow.render_game_to_text = () => app.renderToText();
+debugWindow.advanceTime = (ms) => app.advanceTime(ms);
 
 app.start().catch((err) => {
-  console.error('Failed to start Cone Zone:', err);
+  console.error('Failed to start Skate Burger:', err);
   container.innerHTML = `<div style="color:#fff;font-family:sans-serif;padding:24px">
     Failed to start the game. Check the console for details.</div>`;
 });

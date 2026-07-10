@@ -79,6 +79,19 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** External SVG symbols keep functional UI art crisp, themeable and text-free. */
+function uiIcon(name: string, parent?: HTMLElement, className = 'ui-icon'): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add(...className.split(' ').filter(Boolean));
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `/ui/ui-icons.svg#icon-${name}`);
+  svg.appendChild(use);
+  parent?.appendChild(svg);
+  return svg;
+}
+
 export class UIManager {
   // touch input flags, read by GameApp every frame
   touchSteer = 0;
@@ -157,22 +170,44 @@ export class UIManager {
     const s = el('div', 'screen screen-start hidden', this.root);
     this.screens.set('start', s);
 
-    const card = el('div', 'title-card', s);
-    el('div', 'title-emoji', card, '🍔');
-    el('h1', 'game-title', card, 'SKATE BURGER');
-    el('p', 'tagline', card, 'Stack it. Shred it. Don’t drop it.');
+    el('div', 'shack-awning', s);
+    const top = el('div', 'home-topbar', s);
+    const music = el('button', 'hud-icon-btn home-music', top);
+    music.setAttribute('aria-label', 'Open jukebox');
+    uiIcon('music', music);
+    music.addEventListener('click', () => this.openMusicPlayer());
+    const wallet = el('button', 'wallet-ticket', top);
+    wallet.setAttribute('aria-label', 'Open Grill Shop');
+    uiIcon('token', wallet);
+    this.balanceEls.push(el('span', 'coin-balance', wallet, ''));
+    wallet.addEventListener('click', () => this.openShop());
+
+    const card = el('div', 'home-hero', s);
+    const logo = document.createElement('img');
+    logo.className = 'game-logo';
+    logo.src = '/ui/skate-burger-logo.webp';
+    logo.alt = 'Skate Burger';
+    card.appendChild(logo);
+    el('p', 'tagline', card, 'FLIP. STACK. SHRED.');
 
     const best = Number(localStorage.getItem('coneZoneBest') ?? 0);
-    if (best > 0) el('p', 'best-score', card, `Best score: ${best.toLocaleString()}`);
-    const wallet = el('div', 'wallet-row', card);
-    this.balanceEls.push(el('span', 'coin-balance', wallet, ''));
-    const getCoins = el('button', 'btn btn-small get-coins', wallet, '＋');
-    getCoins.addEventListener('click', () => this.openShop());
+    const bestTicket = el('div', 'best-score', card);
+    el('small', '', bestTicket, 'BEST ORDER');
+    el('strong', '', bestTicket, best.toLocaleString());
 
-    const play = el('button', 'btn btn-big btn-primary', card, 'PLAY');
+    const play = el('button', 'btn btn-big btn-primary home-primary', card, 'DROP IN');
     play.addEventListener('click', () => this.cb.onPlay());
 
-    el('p', 'footer-note', s, 'Space = ollie · W = boost · ↑ = launch off ramps · air: tap jump = flips, hold boost = grabs');
+    const quick = el('div', 'home-quick-actions', s);
+    const quickAction = (icon: string, label: string, fn: () => void) => {
+      const btn = el('button', 'home-quick', quick);
+      uiIcon(icon, btn);
+      el('span', '', btn, label);
+      btn.addEventListener('click', fn);
+    };
+    quickAction('hat', 'LOOKS', () => this.cb.onCustomize());
+    quickAction('shop', 'SHOP', () => this.openShop());
+    quickAction('music', 'JUKEBOX', () => this.openMusicPlayer());
   }
 
   /* ---------------------------------------------------------- */
@@ -184,9 +219,11 @@ export class UIManager {
     this.screens.set('customize', s);
 
     const top = el('div', 'customize-top', s);
-    const back = el('button', 'btn btn-small', top, '← Back');
+    const back = el('button', 'btn btn-small icon-text-btn', top);
+    uiIcon('back', back);
+    el('span', '', back, 'BACK');
     back.addEventListener('click', () => this.cb.onExitToMenu());
-    el('h2', 'screen-title inline', top, 'MAKE IT YOURS');
+    el('h2', 'screen-title inline', top, 'DRESS THE BUN');
     // Balance pill doubles as the shop button — tap it to buy more coins.
     const balPill = el('button', 'coin-balance pill shop-open', top, '');
     balPill.addEventListener('click', () => this.openShop());
@@ -220,7 +257,10 @@ export class UIManager {
       pick: (id: T) => void,
     ) => {
       const section = el('div', 'chip-section hidden', content);
-      const tab = el('button', 'tab', tabBar, title);
+      const tab = el('button', 'tab', tabBar);
+      const iconName = title === 'Hat' ? 'hat' : title === 'Glasses' ? 'glasses' : title === 'Board' ? 'board' : title === 'Wheels' ? 'wheel' : 'trail';
+      uiIcon(iconName, tab);
+      el('span', '', tab, title);
       tab.addEventListener('click', () => selectTab(title));
       tabs.push({ name: title, btn: tab, section });
       const row = el('div', 'chip-row', section);
@@ -233,7 +273,7 @@ export class UIManager {
           chip.title = owned ? opt.label ?? '' : `${opt.label} — ${opt.price} coins`;
           chip.textContent = owned ? '' : '🔒';
         } else {
-          chip.textContent = owned ? opt.label ?? '' : `🔒 ${opt.label} · ${opt.price}🪙`;
+          chip.textContent = owned ? opt.label ?? '' : `${opt.label} · ${opt.price}`;
         }
         chip.classList.toggle('locked', !owned);
       };
@@ -308,7 +348,7 @@ export class UIManager {
     selectTab('Hat');
 
     // Pinned to the bottom of the sheet, always visible.
-    const skate = el('button', 'btn btn-big btn-primary skate-btn', panel, 'SKATE! 🛹');
+    const skate = el('button', 'btn btn-big btn-primary skate-btn', panel, 'RIDE');
     skate.addEventListener('click', () => this.cb.onSkate());
   }
 
@@ -321,7 +361,7 @@ export class UIManager {
   }
 
   refreshBalances(): void {
-    for (const b of this.balanceEls) b.textContent = `🪙 ${this.economy.coins.toLocaleString()}`;
+    for (const b of this.balanceEls) b.textContent = this.economy.coins.toLocaleString();
   }
 
   /* ---------------------------------------------------------- */
@@ -333,7 +373,9 @@ export class UIManager {
     this.screens.set('levels', s);
 
     const top = el('div', 'customize-top', s);
-    const back = el('button', 'btn btn-small', top, '← Back');
+    const back = el('button', 'btn btn-small icon-text-btn', top);
+    uiIcon('back', back);
+    el('span', '', back, 'BACK');
     // Route through setMode so the preview rebuilds (plain show() left the
     // app in 'levels' mode, so customize edits didn't update the preview).
     back.addEventListener('click', () => this.cb.onCustomize());
@@ -341,14 +383,18 @@ export class UIManager {
 
     const panel = el('div', 'select-panel', s);
     const grid = el('div', 'select-grid', panel);
-    for (const lvl of LEVELS) {
+    LEVELS.forEach((lvl, index) => {
       const card = el('button', 'select-card level-card', grid);
-      el('div', 'level-icon', card, lvl.icon);
-      el('div', 'card-name', card, lvl.name);
-      el('div', 'card-blurb', card, lvl.blurb);
-      el('div', 'level-size', card, `${lvl.bounds.x * 2}×${lvl.bounds.z * 2}m${lvl.physics?.speedMul ? ' · fast & drifty' : ''}`);
+      card.dataset.level = lvl.id;
+      const preview = el('div', 'level-preview', card);
+      el('span', 'level-number', preview, String(index + 1).padStart(2, '0'));
+      el('div', 'level-horizon', preview);
+      el('div', 'card-name', card, lvl.id === 'cone-park' ? 'Grill Yard' : lvl.name);
+      const tags = el('div', 'level-tags', card);
+      el('span', '', tags, lvl.physics?.speedMul ? 'FAST' : 'FLOW');
+      el('span', '', tags, index === 0 ? 'EASY LINES' : index % 2 ? 'BIG AIR' : 'TECH');
       card.addEventListener('click', () => this.cb.onLevelPicked(lvl.id));
-    }
+    });
     // A mouse wheel won't scroll a horizontal overflow (and macOS hides the
     // scrollbar), which left the last spot looking cropped with no way to
     // reach it. Translate vertical wheel movement into horizontal scroll.
@@ -375,11 +421,16 @@ export class UIManager {
     this.screens.set('hud', s);
 
     const topLeft = el('div', 'hud-topleft', s);
+    el('div', 'hud-score-label', topLeft, 'SCORE');
     this.scoreEl = el('div', 'hud-score', topLeft, '0');
     this.comboEl = el('div', 'hud-combo hidden', topLeft, 'x1');
     const barTrack = el('div', 'combo-track', topLeft);
     this.comboBar = el('div', 'combo-fill', barTrack);
-    this.coinCountEl = el('div', 'hud-cones', topLeft, '📦 0/0 · 🍔 1');
+    this.coinCountEl = el('div', 'hud-cones', topLeft);
+    uiIcon('crate', this.coinCountEl);
+    el('span', 'crate-count', this.coinCountEl, '0/0');
+    uiIcon('burger', this.coinCountEl);
+    el('span', 'burger-count', this.coinCountEl, '×1');
     // Special-trick meter: fills with tricks; full = specials unlocked.
     this.specialWrap = el('div', 'special-wrap', topLeft);
     el('div', 'special-label', this.specialWrap, 'SPECIAL');
@@ -390,20 +441,15 @@ export class UIManager {
 
     // Boost meter: blue bar top-center under the timer.
     const boostWrap = el('div', 'boost-wrap', s);
-    el('div', 'boost-icon', boostWrap, '⚡');
+    uiIcon('boost', boostWrap, 'ui-icon boost-icon');
     const boostTrack = el('div', 'boost-track', boostWrap);
     this.boostBar = el('div', 'boost-fill', boostTrack);
 
-    // Minimal top-right: just two icon buttons. Reset (↺) and Pause (‖).
-    // Audio + music now live in the pause screen, so they're gone from here.
+    // Minimal top-right: pause only. Reset lives in the pause menu.
     const topRight = el('div', 'hud-topright', s);
-    const reset = el('button', 'hud-icon-btn', topRight);
-    reset.setAttribute('aria-label', 'Reset');
-    el('span', 'icon-reset', reset, '↺');
-    reset.addEventListener('click', () => this.cb.onReset());
     const pause = el('button', 'hud-icon-btn', topRight);
     pause.setAttribute('aria-label', 'Pause');
-    el('span', 'icon-pause', pause); // two vertical bars drawn in CSS
+    uiIcon('pause', pause);
     pause.addEventListener('click', () => this.cb.onPause());
 
     this.buildMusicPlayer();
@@ -422,20 +468,30 @@ export class UIManager {
     // (◀ ▶) in the middle, down (▼, brake / hold in air = backflip) at the
     // bottom. Small + translucent so they stay out of the way.
     const left = el('div', 'touch-cluster touch-left', touch);
-    const btnLaunch = el('button', 'touch-btn touch-dir touch-launch', left, '▲');
+    const btnLaunch = el('button', 'touch-btn touch-dir touch-launch', left);
+    btnLaunch.setAttribute('aria-label', 'Launch');
+    uiIcon('up', btnLaunch);
     const dirRow = el('div', 'touch-dirrow', left);
-    const btnL = el('button', 'touch-btn touch-dir', dirRow, '◀');
-    const btnR = el('button', 'touch-btn touch-dir', dirRow, '▶');
-    const btnDown = el('button', 'touch-btn touch-dir', left, '▼');
+    const btnL = el('button', 'touch-btn touch-dir', dirRow);
+    btnL.setAttribute('aria-label', 'Steer left');
+    uiIcon('left', btnL);
+    const btnR = el('button', 'touch-btn touch-dir', dirRow);
+    btnR.setAttribute('aria-label', 'Steer right');
+    uiIcon('right', btnR);
+    const btnDown = el('button', 'touch-btn touch-dir', left);
+    btnDown.setAttribute('aria-label', 'Brake');
+    uiIcon('down', btnDown);
 
     // RIGHT: the two primary actions, each an icon with a subtle label.
     const right = el('div', 'touch-cluster touch-right', touch);
     const btnBoost = el('button', 'touch-btn touch-boost touch-labeled', right);
-    el('span', 'tb-icon', btnBoost, '🔥');
-    el('span', 'tb-label', btnBoost, 'boost');
+    btnBoost.setAttribute('aria-label', 'Boost');
+    uiIcon('boost', btnBoost, 'ui-icon tb-icon');
+    el('span', 'tb-label', btnBoost, 'BOOST');
     const btnJump = el('button', 'touch-btn touch-jump touch-labeled', right);
-    el('span', 'tb-icon', btnJump, '▲');
-    el('span', 'tb-label', btnJump, 'jump');
+    btnJump.setAttribute('aria-label', 'Jump');
+    uiIcon('jump', btnJump, 'ui-icon tb-icon');
+    el('span', 'tb-label', btnJump, 'JUMP');
 
     const bindHold = (btn: HTMLElement, down: () => void, up: () => void) => {
       const start = (e: Event) => {
@@ -480,19 +536,20 @@ export class UIManager {
 
     const sheet = el('div', 'music-sheet', overlay);
     const head = el('div', 'music-head', sheet);
-    el('h2', 'music-title', head, '🎵 JUKEBOX');
-    const close = el('button', 'btn btn-small music-close', head, '✕');
+    const musicHeading = el('div', 'overlay-heading', head);
+    uiIcon('music', musicHeading);
+    el('h2', 'music-title', musicHeading, 'JUKEBOX');
+    const close = el('button', 'btn btn-small music-close', head);
+    close.setAttribute('aria-label', 'Close jukebox');
+    uiIcon('close', close);
     close.addEventListener('click', () => this.closeMusicPlayer());
 
     const grid = el('div', 'music-grid', sheet);
     MUSIC_TRACKS.forEach((track, i) => {
       const card = el('button', 'album-card', grid);
-      // Placeholder square "album art": a deterministic two-tone gradient
-      // derived from the track's position, with a music glyph on top.
-      const hue = (i * 47) % 360;
       const art = el('div', 'album-art', card);
-      art.style.background = `linear-gradient(135deg, hsl(${hue} 75% 58%), hsl(${(hue + 40) % 360} 75% 42%))`;
-      el('span', 'album-glyph', art, '♪');
+      art.dataset.variant = String(i % 4);
+      uiIcon('music', art, 'ui-icon album-glyph');
       const eq = el('div', 'album-eq', card); // "now playing" bars (CSS-animated)
       el('i', '', eq);
       el('i', '', eq);
@@ -535,8 +592,12 @@ export class UIManager {
 
     const sheet = el('div', 'shop-sheet', overlay);
     const head = el('div', 'shop-head', sheet);
-    el('h2', 'shop-title', head, '🪙 COIN SHOP');
-    const close = el('button', 'btn btn-small', head, '✕');
+    const shopHeading = el('div', 'overlay-heading', head);
+    uiIcon('shop', shopHeading);
+    el('h2', 'shop-title', shopHeading, 'GRILL SHOP');
+    const close = el('button', 'btn btn-small', head);
+    close.setAttribute('aria-label', 'Close shop');
+    uiIcon('close', close);
     close.addEventListener('click', () => this.closeShop());
 
     // Live wallet balance (registered so refreshBalances keeps it current).
@@ -546,13 +607,14 @@ export class UIManager {
     for (const pack of COIN_PACKS) {
       const card = el('div', 'coinpack', grid);
       if (pack.bonus) el('div', 'coinpack-badge', card, pack.bonus);
-      el('div', 'coinpack-icon', card, '🪙');
+      const packIcon = el('div', 'coinpack-icon', card);
+      uiIcon('token', packIcon);
       el('div', 'coinpack-coins', card, pack.coins.toLocaleString());
       const buy = el('button', 'btn btn-small coinpack-buy', card, `$${pack.usd.toFixed(2)}`);
       buy.addEventListener('click', () => this.purchase(pack));
     }
 
-    el('p', 'shop-note', sheet, 'Demo store — purchases are simulated (no real charge).');
+    el('p', 'shop-note', sheet, 'Prototype store. No real charge.');
   }
 
   private purchase(pack: CoinPack): void {
@@ -561,7 +623,9 @@ export class UIManager {
     // provider (Stripe Checkout, etc.) when there's a backend.
     this.economy.addCoins(pack.coins);
     this.refreshBalances();
-    const toast = el('div', 'shop-toast', this.shopOverlay, `+${pack.coins.toLocaleString()} 🪙`);
+    const toast = el('div', 'shop-toast', this.shopOverlay);
+    uiIcon('token', toast);
+    el('span', '', toast, `+${pack.coins.toLocaleString()}`);
     void toast.offsetWidth;
     toast.classList.add('show');
     setTimeout(() => toast.remove(), 1400);
@@ -590,7 +654,7 @@ export class UIManager {
   setCombo(chainSize: number, windowFrac: number): void {
     const active = chainSize >= 2;
     this.comboEl.classList.toggle('hidden', !active);
-    this.comboEl.textContent = `CHAIN ×${chainSize}`;
+    this.comboEl.textContent = `COMBO ×${chainSize}`;
     this.comboBar.style.width = `${Math.round(windowFrac * 100)}%`;
   }
 
@@ -639,7 +703,7 @@ export class UIManager {
 
   /** Bonked mid-chain: the pending points are lost. */
   stackVoidFx(): void {
-    const fly = el('div', 'points-fly void', this.popupLayer, 'CHAIN LOST');
+    const fly = el('div', 'points-fly void', this.popupLayer, 'BEEFED IT');
     fly.style.left = this.stackWrap.style.left;
     fly.style.top = this.stackWrap.style.top;
     setTimeout(() => fly.remove(), 900);
@@ -661,7 +725,10 @@ export class UIManager {
 
   private renderBoxesLine(): void {
     const b = this.boxesLine;
-    this.coinCountEl.textContent = `📦 ${b.collected}/${b.total} · 🍔 ${b.burger}`;
+    const crate = this.coinCountEl.querySelector('.crate-count');
+    const burger = this.coinCountEl.querySelector('.burger-count');
+    if (crate) crate.textContent = `${b.collected}/${b.total}`;
+    if (burger) burger.textContent = `×${b.burger}`;
   }
 
   setBoost(frac: number): void {
@@ -686,11 +753,15 @@ export class UIManager {
   /** Cash-in celebration: a burst of coins flies up to the top HUD + a callout. */
   coinFlyout(amount: number): void {
     const layer = this.popupLayer;
-    const callout = el('div', 'coin-callout', layer, `🍔 +${amount.toLocaleString()} 🪙`);
+    const callout = el('div', 'coin-callout', layer);
+    uiIcon('burger', callout);
+    el('span', '', callout, `+${amount.toLocaleString()}`);
+    uiIcon('token', callout);
     setTimeout(() => callout.remove(), 1300);
     const n = Math.min(16, 7 + Math.round(amount / 50));
     for (let i = 0; i < n; i++) {
-      const c = el('div', 'coin-fly', layer, '🪙');
+      const c = el('div', 'coin-fly', layer);
+      uiIcon('token', c);
       c.style.left = `${44 + Math.random() * 12}%`;
       c.style.top = `${52 + Math.random() * 12}%`;
       c.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
@@ -711,15 +782,17 @@ export class UIManager {
     const s = el('div', 'screen screen-pause hidden', this.root);
     this.screens.set('pause', s);
 
+    el('div', 'shack-awning pause-awning', s);
     const card = el('div', 'title-card pause-card', s);
-    el('h2', 'game-title small', card, 'PAUSED');
+    el('span', 'pause-kicker', card, 'TAKE FIVE');
+    el('h2', 'game-title small', card, 'ON BREAK');
 
     // --- Music player: now-playing + open the jukebox grid ---
     const music = el('div', 'pause-music', card);
     const np = el('div', 'pause-nowplaying', music);
-    el('span', 'pause-note', np, '🎵');
+    uiIcon('music', np, 'ui-icon pause-note');
     this.pauseTrackName = el('span', 'pause-trackname', np, '');
-    const change = el('button', 'btn btn-small', music, 'Tracks');
+    const change = el('button', 'btn btn-small', music, 'JUKEBOX');
     change.addEventListener('click', () => this.openMusicPlayer());
 
     // --- Volume sliders ---
@@ -742,11 +815,11 @@ export class UIManager {
     this.sfxSlider = slider('Sound', () => this.cb.getSfxVolume(), (v) => this.cb.setSfxVolume(v));
 
     // --- Controls: tucked behind a toggle so the pause card stays clean ---
-    const ctrlToggle = el('button', 'btn btn-small pause-controls-toggle', card, '🎮 Controls');
+    const ctrlToggle = el('button', 'btn btn-small pause-controls-toggle', card, 'TRICK BOOK');
     const hints = el('div', 'controls-hint hidden', card);
     ctrlToggle.addEventListener('click', () => {
       const open = hints.classList.toggle('hidden');
-      ctrlToggle.textContent = open ? '🎮 Controls' : '🎮 Hide controls';
+      ctrlToggle.textContent = open ? 'TRICK BOOK' : 'HIDE TRICKS';
     });
     const section = (title: string) => el('div', 'hint-section', hints, title);
     const hint = (action: string, how: string) => {
@@ -757,7 +830,7 @@ export class UIManager {
     section('RIDING');
     hint('Steer', 'A/D · ←/→ · ◀ ▶');
     hint('Ollie', 'Space · ⬆');
-    hint('Boost (blue meter)', 'hold W · Shift · 🔥');
+    hint('Boost', 'hold W · Shift · BOOST');
     hint('Launch off ramps', '↑ · ⤴');
     hint('Brake', 'S / ↓');
     section('AIR TRICKS — tap jump again in the air');
@@ -788,12 +861,14 @@ export class UIManager {
     hint('Refill boost', 'rest, or grab blue orbs');
     hint('Reset / Pause / Debug', 'R · Esc/P · V');
 
-    const row = el('div', 'results-buttons', card);
-    const resume = el('button', 'btn btn-big btn-primary', row, 'RESUME');
+    const row = el('div', 'results-buttons pause-actions', card);
+    const resume = el('button', 'btn btn-big btn-primary', row, 'BACK TO IT');
     resume.addEventListener('click', () => this.cb.onResume());
-    const restart = el('button', 'btn btn-big', row, 'RESTART');
+    const restart = el('button', 'btn btn-big', row, 'RESTART RUN');
     restart.addEventListener('click', () => this.cb.onRetry());
-    const quit = el('button', 'btn btn-big', row, 'QUIT');
+    const reset = el('button', 'btn btn-big', row, 'RESET POSITION');
+    reset.addEventListener('click', () => this.cb.onReset());
+    const quit = el('button', 'btn btn-big btn-quiet', row, 'QUIT TO SHACK');
     quit.addEventListener('click', () => this.cb.onExitToMenu());
   }
 
@@ -808,15 +883,16 @@ export class UIManager {
     this.screens.set('results', s);
 
     const card = el('div', 'title-card results-card', s);
-    el('h2', 'game-title small', card, "TIME'S UP!");
+    el('span', 'results-kicker', card, 'RUN COMPLETE');
+    el('h2', 'game-title small', card, 'ORDER UP!');
     this.resultsBody = el('div', 'results-body', card);
 
     const row = el('div', 'results-buttons', card);
-    const retry = el('button', 'btn btn-big btn-primary', row, 'RETRY');
+    const retry = el('button', 'btn btn-big btn-primary', row, 'AGAIN!');
     retry.addEventListener('click', () => this.cb.onRetry());
-    const customize = el('button', 'btn btn-big', row, 'CUSTOMIZE');
+    const customize = el('button', 'btn btn-big', row, 'LOOKS');
     customize.addEventListener('click', () => this.cb.onCustomize());
-    const menu = el('button', 'btn btn-big', row, 'MENU');
+    const menu = el('button', 'btn btn-big btn-quiet', row, 'HOME');
     menu.addEventListener('click', () => this.cb.onExitToMenu());
   }
 
@@ -828,17 +904,23 @@ export class UIManager {
       el('span', 'result-value', row, value);
     };
     stat('SCORE', data.score.toLocaleString(), true);
-    stat('Tallest burger', `🍔 ${data.tallestBurger} layers`);
-    stat('Biggest chain', `${data.bestCombo} moves`);
-    stat('Mystery boxes', `📦 ${data.coins}/${data.totalCoins}`);
-    stat('Moves banked', String(data.tricks));
-    stat('Banked', `+${data.coinsBanked} 🪙`);
-    stat('Wallet', `🪙 ${data.balance.toLocaleString()}`);
+    stat('TALLEST STACK', `×${data.tallestBurger}`);
+    stat('BEST COMBO', `×${data.bestCombo}`);
+    const receipt = el('div', 'results-receipt-details', this.resultsBody);
+    const detail = (label: string, value: string) => {
+      const row = el('div', 'receipt-detail', receipt);
+      el('span', '', row, label);
+      el('strong', '', row, value);
+    };
+    detail('TOPPING CRATES', `${data.coins}/${data.totalCoins}`);
+    detail('MOVES BANKED', String(data.tricks));
+    detail('TOKENS BANKED', `+${data.coinsBanked}`);
+    detail('WALLET', data.balance.toLocaleString());
 
     const best = Number(localStorage.getItem('coneZoneBest') ?? 0);
     if (data.score > best) {
       localStorage.setItem('coneZoneBest', String(data.score));
-      stat('', '🏆 NEW BEST!');
+      stat('', 'NEW BEST!');
     }
     this.show('results');
   }

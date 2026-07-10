@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
+    "@fontsource/barlow-condensed": "^5.2.7",
+    "@fontsource/lilita-one": "^5.2.6",
     "three": "^0.169.0"
   },
   "devDependencies": {
