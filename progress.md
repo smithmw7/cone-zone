@@ -50,3 +50,11 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Add module footprint metadata plus a build-time overlap validator, with explicit allow-lists for intentional compositions such as terrace banks.
 - Re-space the shared west bowl/half-pipe cluster, then separately move the Redwood Coast drop-in and Sunset Harbor stair/rail cluster.
 - Reconcile perimeter rideability: bonk threshold versus the 68-degree surface, vert-lock behavior, and clamp position should agree on whether the rider may clear the lip.
+
+## 2026-07-10 Burger/crown coin collectible
+
+- Replaced the mystery-crate collectible visual with a reusable 3D gold coin model: burger relief on one side, crown relief on the other, raised rim/groove details, slow spin, bob, and a soft glow.
+- Reworked the UI token SVG into a gold burger coin icon and added a crown symbol for coin backs.
+- Updated HUD/results language and icons from crate-focused collection to coin-focused collection.
+- Added CSS-3D burger/crown coin flyouts for pickups and drive-through cash-in, with pickup flyouts launching toward the HUD on collection.
+- Validation: production build passes; automated pickup test collected the first coin, increased score to 50, stack height to 2, and saved screenshots under `output/coin-feature/`.

@@ -98,6 +98,39 @@ function setCoinBalance(node: HTMLElement, amount: number): void {
   el('span', 'coin-balance-value', node, amount.toLocaleString());
 }
 
+function coin3d(parent: HTMLElement, className = 'coin-3d'): HTMLElement {
+  const coin = el('span', className, parent);
+  const inner = el('span', 'coin-3d-inner', coin);
+  const front = el('span', 'coin-3d-face coin-3d-front', inner);
+  uiIcon('token', front);
+  const back = el('span', 'coin-3d-face coin-3d-back', inner);
+  uiIcon('crown', back);
+  return coin;
+}
+
+function animateCoinFly(node: HTMLElement, dx: number, duration: number, delay: number): void {
+  const targetX = -window.innerWidth * 0.4 + dx;
+  const targetY = -window.innerHeight * 0.44;
+  node.style.opacity = '1';
+  node.style.transform = 'translate(0, -8px) scale(1.05)';
+  window.setTimeout(() => {
+    const started = performance.now();
+    const timer = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - started) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const opacity = t < 0.18 ? t / 0.18 : Math.max(0, 1 - (t - 0.66) / 0.34);
+      const pop = t < 0.18 ? 0.4 + (t / 0.18) * 0.68 : 1.08 - eased * 0.26;
+      node.style.opacity = opacity.toFixed(3);
+      node.style.transform = `translate(${targetX * eased}px, ${targetY * eased}px) scale(${pop})`;
+      if (t >= 1) {
+        window.clearInterval(timer);
+        node.remove();
+      }
+    }, 16);
+  }, delay);
+  window.setTimeout(() => node.remove(), delay + duration + 220);
+}
+
 /** Keep horizontal carousels usable with a mouse as well as touch swipes. */
 function enableHorizontalDrag(scroller: HTMLElement): void {
   let pointerId: number | null = null;
@@ -474,8 +507,8 @@ export class UIManager {
     const barTrack = el('div', 'combo-track', topLeft);
     this.comboBar = el('div', 'combo-fill', barTrack);
     this.coinCountEl = el('div', 'hud-cones', topLeft);
-    uiIcon('crate', this.coinCountEl);
-    el('span', 'crate-count', this.coinCountEl, '0/0');
+    uiIcon('token', this.coinCountEl);
+    el('span', 'coin-count', this.coinCountEl, '0/0');
     uiIcon('burger', this.coinCountEl);
     el('span', 'burger-count', this.coinCountEl, '×1');
     // Special-trick meter: fills with tricks; full = specials unlocked.
@@ -756,25 +789,25 @@ export class UIManager {
     setTimeout(() => fly.remove(), 900);
   }
 
-  private boxesLine = { collected: 0, total: 0, burger: 1 };
+  private coinLine = { collected: 0, total: 0, burger: 1 };
 
   setCoinCount(collected: number, total: number): void {
-    this.boxesLine.collected = collected;
-    this.boxesLine.total = total;
-    this.renderBoxesLine();
+    this.coinLine.collected = collected;
+    this.coinLine.total = total;
+    this.renderCoinLine();
   }
 
   /** Current burger stack height (layers incl. the base patty). */
   setBurgerHeight(layers: number): void {
-    this.boxesLine.burger = layers;
-    this.renderBoxesLine();
+    this.coinLine.burger = layers;
+    this.renderCoinLine();
   }
 
-  private renderBoxesLine(): void {
-    const b = this.boxesLine;
-    const crate = this.coinCountEl.querySelector('.crate-count');
+  private renderCoinLine(): void {
+    const b = this.coinLine;
+    const coin = this.coinCountEl.querySelector('.coin-count');
     const burger = this.coinCountEl.querySelector('.burger-count');
-    if (crate) crate.textContent = `${b.collected}/${b.total}`;
+    if (coin) coin.textContent = `${b.collected}/${b.total}`;
     if (burger) burger.textContent = `×${b.burger}`;
   }
 
@@ -803,17 +836,28 @@ export class UIManager {
     const callout = el('div', 'coin-callout', layer);
     uiIcon('burger', callout);
     el('span', '', callout, `+${amount.toLocaleString()}`);
-    uiIcon('token', callout);
+    coin3d(callout, 'coin-3d coin-3d-callout');
     setTimeout(() => callout.remove(), 1300);
     const n = Math.min(16, 7 + Math.round(amount / 50));
     for (let i = 0; i < n; i++) {
       const c = el('div', 'coin-fly', layer);
-      uiIcon('token', c);
+      coin3d(c);
       c.style.left = `${44 + Math.random() * 12}%`;
       c.style.top = `${52 + Math.random() * 12}%`;
-      c.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
-      c.style.animationDelay = `${(i * 0.035).toFixed(2)}s`;
-      setTimeout(() => c.remove(), 1300);
+      animateCoinFly(c, (Math.random() - 0.5) * 60, 1700, i * 45);
+    }
+  }
+
+  /** Pickup sparkle: collected coins flip upward toward the top-left HUD. */
+  coinPickupFlyout(count: number): void {
+    const layer = this.popupLayer;
+    const n = Math.min(8, Math.max(1, count));
+    for (let i = 0; i < n; i++) {
+      const c = el('div', 'coin-fly coin-fly-pickup', layer);
+      coin3d(c);
+      c.style.left = `${54 + Math.random() * 8}%`;
+      c.style.top = `${35 + Math.random() * 8}%`;
+      animateCoinFly(c, (Math.random() - 0.5) * 42, 1700, i * 45);
     }
   }
 
@@ -959,7 +1003,7 @@ export class UIManager {
       el('span', '', row, label);
       el('strong', '', row, value);
     };
-    detail('TOPPING CRATES', `${data.coins}/${data.totalCoins}`);
+    detail('COINS FOUND', `${data.coins}/${data.totalCoins}`);
     detail('MOVES BANKED', String(data.tricks));
     detail('TOKENS BANKED', `+${data.coinsBanked}`);
     detail('WALLET', data.balance.toLocaleString());

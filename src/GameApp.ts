@@ -470,6 +470,7 @@ export class GameApp {
       score: this.score?.score ?? 0,
       timeLeft: this.score?.timeLeft ?? 0,
       stackHeight: this.playerRig?.stack?.count ?? 1,
+      coinsFound: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
       toppingCrates: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
       player: playing ? {
         x: Number(this.controller.pos.x.toFixed(2)),
@@ -534,11 +535,11 @@ export class GameApp {
         this.score.update(dt);
         this.ui.setTimer(this.score.timeLeft);
 
-        // Pickups: mystery boxes (topping + coin + score), orbs (boost).
+        // Pickups: burger/crown coins (topping + score), orbs (boost).
         const got = this.park.update(dt, this.controller.pos);
         for (let i = 0; i < got.coins; i++) {
           this.score.coin();
-          // The box spins, the reveal pops: a random topping joins the stack.
+          // The coin flips, the reveal pops: a random topping joins the stack.
           const topping = this.playerRig?.stack?.addRandomTopping();
           if (topping) this.ui.trickPopup(`+ ${topping.label.toUpperCase()}`, 0);
         }
@@ -547,6 +548,7 @@ export class GameApp {
           this.tallestBurger = Math.max(this.tallestBurger, h);
           this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
           this.ui.setBurgerHeight(h);
+          this.ui.coinPickupFlyout(got.coins);
           this.audio.coin();
         }
         if (got.orbs > 0) {
