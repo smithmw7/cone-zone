@@ -1680,12 +1680,14 @@ input {
   width: min(92vw, 500px);
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   transform: translateX(-50%);
   text-align: center;
 }
 
 .game-logo {
+  position: relative;
+  z-index: 1;
   display: block;
   width: min(84vw, 410px);
   height: auto;
@@ -1693,7 +1695,9 @@ input {
 }
 
 .tagline {
-  margin-top: -5px;
+  position: relative;
+  z-index: 2;
+  margin-top: -22px;
   padding: 4px 11px;
   border: 2px solid var(--sb-char);
   border-radius: 5px;
@@ -1722,41 +1726,7 @@ input {
 
 .best-score small { color: var(--sb-toast); font-size: 9px; font-weight: 900; letter-spacing: 0.12em; }
 .best-score strong { font-size: 22px; }
-.home-primary { width: min(74vw, 330px); min-height: 68px; margin-top: 4px; font-size: 30px; }
-
-.home-quick-actions {
-  position: absolute;
-  z-index: 5;
-  left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  display: flex;
-  gap: clamp(22px, 8vw, 48px);
-  transform: translateX(-50%);
-}
-
-.home-quick {
-  display: grid;
-  width: 64px;
-  justify-items: center;
-  gap: 5px;
-  border: 0;
-  color: var(--sb-char);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.home-quick .ui-icon {
-  width: 46px;
-  height: 42px;
-  padding: 8px;
-  border: 3px solid var(--sb-char);
-  border-radius: 11px;
-  color: var(--sb-cream);
-  background: var(--sb-char);
-  box-shadow: 0 4px 0 rgba(255, 243, 214, 0.5);
-}
+.home-primary { width: min(74vw, 330px); min-height: 68px; margin-top: 18px; font-size: 30px; }
 
 /* Shared screen headers ---------------------------------------------------- */
 
@@ -2085,10 +2055,7 @@ input {
 @media (max-height: 820px) and (min-aspect-ratio: 1 / 1) {
   .home-hero { top: 66px; }
   .game-logo { width: min(38vw, 310px); }
-  .tagline { font-size: 11px; }
+  .tagline { margin-top: -18px; font-size: 11px; }
   .best-score { margin-top: 65px; }
-  .home-primary { min-height: 58px; font-size: 25px; }
-  .home-quick-actions { left: auto; right: 20px; bottom: 18px; transform: none; }
-  .home-quick { width: 54px; }
-  .home-quick .ui-icon { width: 40px; height: 37px; }
+  .home-primary { min-height: 58px; margin-top: 14px; font-size: 25px; }
 }

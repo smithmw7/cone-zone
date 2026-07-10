@@ -257,17 +257,6 @@ export class UIManager {
 
     const play = el('button', 'btn btn-big btn-primary home-primary', card, 'DROP IN');
     play.addEventListener('click', () => this.cb.onPlay());
-
-    const quick = el('div', 'home-quick-actions', s);
-    const quickAction = (icon: string, label: string, fn: () => void) => {
-      const btn = el('button', 'home-quick', quick);
-      uiIcon(icon, btn);
-      el('span', '', btn, label);
-      btn.addEventListener('click', fn);
-    };
-    quickAction('hat', 'LOOKS', () => this.cb.onCustomize());
-    quickAction('shop', 'SHOP', () => this.openShop());
-    quickAction('music', 'JUKEBOX', () => this.openMusicPlayer());
   }
 
   /* ---------------------------------------------------------- */
