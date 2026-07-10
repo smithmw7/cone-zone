@@ -9,7 +9,7 @@
 
 const COINS_KEY = 'coneZoneCoins';
 const OWNED_KEY = 'coneZoneOwned';
-const STARTING_COINS = 150; // enough to buy something on day one
+const STARTING_COINS = 1000; // enough to buy a few things on day one
 
 /** Purchasable coin packs (real-money shop). `bonus` is a marketing badge. */
 export interface CoinPack {
