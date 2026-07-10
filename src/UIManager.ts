@@ -86,7 +86,7 @@ function uiIcon(name: string, parent?: HTMLElement, className = 'ui-icon'): SVGS
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttribute('href', `/ui/ui-icons.svg#icon-${name}`);
+  use.setAttribute('href', `${import.meta.env.BASE_URL}ui/ui-icons.svg#icon-${name}`);
   svg.appendChild(use);
   parent?.appendChild(svg);
   return svg;
@@ -245,7 +245,7 @@ export class UIManager {
     const card = el('div', 'home-hero', s);
     const logo = document.createElement('img');
     logo.className = 'game-logo';
-    logo.src = '/ui/skate-burger-logo.webp';
+    logo.src = `${import.meta.env.BASE_URL}ui/skate-burger-logo.webp`;
     logo.alt = 'Skate Burger';
     card.appendChild(logo);
     el('p', 'tagline', card, 'FLIP. STACK. SHRED.');
