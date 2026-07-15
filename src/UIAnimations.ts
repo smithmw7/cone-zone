@@ -118,8 +118,9 @@ export function animateTrickPopup(node: HTMLElement, drift: number, tilt: number
 export function spinCoin(coin: HTMLElement): void {
   const inner = coin.querySelector<HTMLElement>('.coin-3d-inner');
   if (!inner) return;
-  gsap.set(inner, { rotationY: 0, rotationZ: -7 });
-  gsap.to(inner, { rotationY: 360, duration: 0.92, repeat: -1, ease: 'none' });
+  gsap.set(inner, { rotationY: -16, rotationZ: -8, transformOrigin: '50% 50%' });
+  gsap.to(inner, { rotationZ: 352, duration: 2.2, repeat: -1, ease: 'none' });
+  gsap.to(inner, { rotationY: 16, duration: 0.62, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 }
 
 export function animateCoinCallout(node: HTMLElement): void {

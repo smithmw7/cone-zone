@@ -1104,53 +1104,58 @@ canvas.game-canvas {
   display: block;
   width: 34px;
   height: 34px;
-  perspective: 120px;
-  filter: drop-shadow(0 0 7px rgba(255, 200, 61, 0.78)) drop-shadow(0 4px 0 rgba(40, 34, 31, 0.24));
+  font-size: 34px;
+  perspective: 180px;
+  filter: drop-shadow(0 0 6px rgba(255, 194, 55, 0.68)) drop-shadow(0 3px 1px rgba(91, 49, 5, 0.32));
 }
 
 .coin-3d-inner {
   position: absolute;
   inset: 0;
+  display: grid;
+  place-items: center;
+  border: 3px solid #a95c07;
   border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff3a1 0 8%, #ffd35a 20%, #f3a719 58%, #c96f08 100%);
+  box-shadow: inset 0 0 0 2px #ffe77c, inset 0 -5px 7px rgba(134, 69, 0, 0.28), inset 0 4px 6px rgba(255, 250, 190, 0.52);
   transform-style: preserve-3d;
+  backface-visibility: visible;
 }
 
 .coin-3d-inner::before {
   content: '';
   position: absolute;
-  top: 1px;
-  bottom: 1px;
-  left: 50%;
-  width: 8px;
-  border: 1px solid #7a3f00;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #7a3f00, #ffc83d 42%, #9c5600);
-  transform: translateX(-50%) rotateY(90deg);
-}
-
-.coin-3d-face {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  inset: 5px;
+  border: 2px solid rgba(166, 88, 3, 0.72);
   border-radius: 50%;
-  backface-visibility: hidden;
-  background: radial-gradient(circle at 35% 28%, #fff48a 0 9%, #ffc83d 34%, #d98600 72%, #7a3f00 100%);
-  box-shadow: inset 0 0 0 2px #28221f, inset 0 0 0 5px rgba(255, 243, 214, 0.42);
-  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 245, 154, 0.8);
 }
 
-.coin-3d-face .ui-icon {
-  width: 100%;
-  height: 100%;
+.coin-3d-inner::after {
+  content: '';
+  position: absolute;
+  top: 17%;
+  left: 22%;
+  width: 34%;
+  height: 15%;
+  border-radius: 50%;
+  background: rgba(255, 255, 211, 0.7);
+  transform: rotate(-24deg);
 }
 
-.coin-3d-front { transform: translateZ(4px); }
-.coin-3d-back { transform: rotateY(180deg) translateZ(4px); }
-.coin-3d-back .ui-icon { width: 68%; height: 68%; }
-.coin-3d-callout { width: 36px; height: 36px; vertical-align: middle; }
+.coin-3d-mark {
+  position: relative;
+  z-index: 1;
+  color: #a75b07;
+  font-family: var(--font-display);
+  font-size: 0.56em;
+  line-height: 1;
+  text-shadow: 0 1px 0 #ffe77c, 0 -1px 0 #7e4000;
+}
+
+.coin-3d-callout { width: 36px; height: 36px; font-size: 36px; vertical-align: middle; }
 .coin-fly-pickup { width: 56px; height: 56px; }
-.coin-fly-pickup .coin-3d { width: 56px; height: 56px; }
+.coin-fly-pickup .coin-3d { width: 56px; height: 56px; font-size: 56px; }
 
 /* ---------- touch controls ---------- */
 
@@ -1822,18 +1827,10 @@ input {
   overflow: hidden;
   scroll-snap-align: center;
 }
-.level-preview { position: relative; width: 100%; height: 330px; flex: 0 0 330px; overflow: hidden; background: linear-gradient(var(--sb-sky) 0 46%, #6c9851 46% 63%, #c3ab76 63%); }
-.level-preview::before { content: ''; position: absolute; z-index: 1; left: 14%; right: 14%; bottom: 18%; height: 28%; border: 3px solid var(--sb-char); background: #9a6844; clip-path: polygon(0 100%, 50% 0, 100% 100%); }
-.level-preview::after { content: ''; position: absolute; right: 12%; top: 28%; width: 104px; height: 85px; border: 3px solid var(--sb-char); background: repeating-linear-gradient(90deg, var(--sb-tomato) 0 15px, var(--sb-cream) 15px 30px); box-shadow: 0 5px 0 rgba(40,34,31,.2); }
-.level-number { position: absolute; z-index: 3; top: 10px; left: 14px; color: var(--sb-cream); font-family: var(--font-display); font-size: 50px; text-shadow: 0 3px 0 var(--sb-char); }
-.level-horizon { position: absolute; left: 0; right: 0; top: 46%; height: 3px; background: var(--sb-char); opacity: .22; }
-.level-card[data-level="mega-canyon"] .level-preview { background: linear-gradient(#ee9b58 0 45%, #b75d36 45% 63%, #d29454 63%); }
-.level-card[data-level="powder-peak"] .level-preview { background: linear-gradient(#91c8ed 0 43%, #dfeaf0 43% 65%, #f7f3e8 65%); }
-.level-card[data-level="sunny-cove"] .level-preview { background: linear-gradient(#6fc8f2 0 45%, #2f91b6 45% 59%, #e2bd6d 59%); }
-.level-card[data-level="canopy-run"] .level-preview { background: linear-gradient(#4f915b 0 45%, #2f683d 45% 62%, #99764e 62%); }
-.level-card[data-level="redwood-coast"] .level-preview { background: linear-gradient(#7899ac 0 45%, #3f6252 45% 63%, #76543e 63%); }
-.level-card[data-level="aqueduct-city"] .level-preview { background: linear-gradient(#79a8c4 0 42%, #69747c 42% 63%, #a9a7a0 63%); }
-.level-card[data-level="sunset-harbor"] .level-preview { background: linear-gradient(#e37e61 0 40%, #d6a552 40% 57%, #4c8ba4 57%); }
+.level-preview { position: relative; width: 100%; height: 330px; flex: 0 0 330px; overflow: hidden; background: var(--sb-char); }
+.level-preview::after { content: ''; position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, rgba(40,34,31,.18), transparent 28%, transparent 72%, rgba(40,34,31,.24)); pointer-events: none; }
+.level-thumbnail { width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; }
+.level-number { position: absolute; z-index: 3; top: 12px; left: 14px; padding: 2px 9px 4px; border: 2px solid var(--sb-char); border-radius: 6px; color: var(--sb-char); background: var(--sb-cheese); box-shadow: 0 3px 0 var(--sb-char); font-family: var(--font-display); font-size: 34px; line-height: 1; }
 .level-card .card-name { margin: 0; padding: 17px 17px 5px; font-family: var(--font-display); font-size: 34px; line-height: 1; text-align: left; }
 
 /* HUD --------------------------------------------------------------------- */
@@ -1892,10 +1889,6 @@ input {
 .coin-callout { display: flex; align-items: center; gap: 7px; color: var(--sb-cheese); font-family: var(--font-display); -webkit-text-stroke: 1.3px var(--sb-char); }
 .coin-callout .ui-icon { width: 34px; height: 34px; }
 .coin-fly .ui-icon { width: 28px; height: 28px; }
-.coin-callout .coin-3d .ui-icon,
-.coin-fly .coin-3d .ui-icon { width: 100%; height: 100%; }
-.coin-callout .coin-3d .coin-3d-back .ui-icon,
-.coin-fly .coin-3d .coin-3d-back .ui-icon { width: 68%; height: 68%; }
 
 /* Six-button control system: four directions + JUMP + BOOST. */
 .touch-controls { z-index: 8; }

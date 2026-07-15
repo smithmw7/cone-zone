@@ -1210,12 +1210,12 @@ vec3 triplanarColor() {
   }
 
   /* ================================================================ */
-  /* Collectibles: burger/crown coins & blue boost orbs               */
+  /* Collectibles: gold coins & blue boost orbs                       */
   /* ================================================================ */
 
   /**
-   * Burger/crown coins. Each one collected drops a random topping onto the
-   * burger and still banks a coin.
+   * Gold coins. Each one collected drops a random topping onto the burger
+   * and still banks a coin.
    */
   placeCollectibles(spots: [number, number, number][]): void {
     for (const [x, y, z] of spots) {

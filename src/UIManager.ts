@@ -47,6 +47,17 @@ import {
 
 export type ScreenName = 'start' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
+const LEVEL_THUMBNAILS: Record<string, string> = {
+  'cone-park': 'grill-yard.webp',
+  'mega-canyon': 'mega-canyon.webp',
+  'powder-peak': 'powder-peak.webp',
+  'sunny-cove': 'sunny-cove.webp',
+  'canopy-run': 'canopy-run.webp',
+  'redwood-coast': 'redwood-coast.webp',
+  'aqueduct-city': 'aqueduct-city.webp',
+  'sunset-harbor': 'sunset-harbor.webp',
+};
+
 export interface UICallbacks {
   onPlay(): void;                 // start → customize
   onSkate(): void;                // customize → level select
@@ -117,10 +128,7 @@ function setCoinBalance(node: HTMLElement, amount: number): void {
 function coin3d(parent: HTMLElement, className = 'coin-3d'): HTMLElement {
   const coin = el('span', className, parent);
   const inner = el('span', 'coin-3d-inner', coin);
-  const front = el('span', 'coin-3d-face coin-3d-front', inner);
-  uiIcon('token', front);
-  const back = el('span', 'coin-3d-face coin-3d-back', inner);
-  uiIcon('crown', back);
+  el('span', 'coin-3d-mark', inner, 'S');
   spinCoin(coin);
   return coin;
 }
@@ -474,8 +482,11 @@ export class UIManager {
       const card = el('button', 'select-card level-card', grid);
       card.dataset.level = lvl.id;
       const preview = el('div', 'level-preview', card);
+      const thumbnail = el('img', 'level-thumbnail', preview);
+      thumbnail.src = `${import.meta.env.BASE_URL}ui/levels/${LEVEL_THUMBNAILS[lvl.id]}`;
+      thumbnail.alt = '';
+      thumbnail.draggable = false;
       el('span', 'level-number', preview, String(index + 1).padStart(2, '0'));
-      el('div', 'level-horizon', preview);
       el('div', 'card-name', card, lvl.id === 'cone-park' ? 'Grill Yard' : lvl.name);
       card.addEventListener('click', () => this.cb.onLevelPicked(lvl.id));
     });
@@ -851,9 +862,8 @@ export class UIManager {
   coinFlyout(amount: number): void {
     const layer = this.popupLayer;
     const callout = el('div', 'coin-callout', layer);
-    uiIcon('burger', callout);
-    el('span', '', callout, `+${amount.toLocaleString()}`);
     coin3d(callout, 'coin-3d coin-3d-callout');
+    el('span', '', callout, `+${amount.toLocaleString()}`);
     animateCoinCallout(callout);
     const n = Math.min(16, 7 + Math.round(amount / 50));
     for (let i = 0; i < n; i++) {

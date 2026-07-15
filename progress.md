@@ -81,3 +81,17 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Repeating HUD and jukebox loops now stop while hidden and resume only while visible; dynamic animations kill descendant tweens before removing their nodes.
 - Physics, player tricks, debris, trails, collectibles, and camera pose remain in the deterministic game update loop because they are simulation state rather than DOM presentation.
 - Validation: production build and GSAP lifecycle tests pass; full home to Looks to Grill Yard gameplay, jump, pause, and resume flow passed with no browser errors. Screenshots are under `output/gsap-pass/`.
+
+## 2026-07-14 AI level thumbnails
+
+- Created a unified prompt system for all eight spots: square 1990s arcade racing level-select art, low camera, strong route perspective, saturated low-poly rendering, and one unmistakable environmental landmark per level.
+- Generated distinct art for Grill Yard, Mega Canyon, Powder Peak, Sunny Cove, Canopy Run, Redwood Coast, Aqueduct City, and Sunset Harbor.
+- Replaced the placeholder CSS scenery in the level picker with optimized 1024 x 1024 WebP thumbnails and a compact number badge.
+- Validation: all eight assets loaded at 1024 x 1024 in desktop and mobile browser passes with no console errors; the final Sunset Harbor card remained selectable and entered the correct level. Captures are under `output/level-thumbnails/`.
+
+## 2026-07-14 Simple gold collectible coin
+
+- Replaced the layered burger/crown CSS flyout with one centered warm-gold medallion, a raised rim, soft highlight, and a clear `S` stamp.
+- Limited the flyout motion to a gentle 3D tilt plus a slow face rotation so the coin stays intact and readable throughout its path to the HUD.
+- Simplified the in-world collectible to match: smooth gold body, raised double-sided rim and `S` stamp, restrained metallic shading, and a softer glow.
+- Validation: production build passes; early, middle, and late flyout frames retain one stable pivot and the final browser pass completed with no console errors. Captures are under `output/simple-coin/`.
