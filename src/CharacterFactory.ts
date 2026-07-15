@@ -625,7 +625,6 @@ function buildAccessory(
 export interface ToppingDef {
   id: string;
   label: string;
-  emoji: string;
   h: number; // layer thickness the stack grows by
   build(): THREE.Group;
 }
@@ -640,9 +639,9 @@ function disc(r: number, h: number, color: number, seg = 14): THREE.Group {
 }
 
 const TOPPINGS: ToppingDef[] = [
-  { id: 'patty', label: 'Patty', emoji: '🥩', h: 0.13, build: () => disc(0.48, 0.13, 0x7a4426) },
+  { id: 'patty', label: 'Patty', h: 0.13, build: () => disc(0.48, 0.13, 0x7a4426) },
   {
-    id: 'cheese', label: 'Cheese', emoji: '🧀', h: 0.06,
+    id: 'cheese', label: 'Cheese', h: 0.06,
     build: () => {
       const g = new THREE.Group();
       const slice = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.05, 0.78), lambert(0xf9c440)));
@@ -653,7 +652,7 @@ const TOPPINGS: ToppingDef[] = [
     },
   },
   {
-    id: 'lettuce', label: 'Lettuce', emoji: '🥬', h: 0.08,
+    id: 'lettuce', label: 'Lettuce', h: 0.08,
     build: () => {
       const g = new THREE.Group();
       const leaf = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.56, 12, 7), lambert(0x77c04b)));
@@ -663,9 +662,9 @@ const TOPPINGS: ToppingDef[] = [
       return g;
     },
   },
-  { id: 'tomato', label: 'Tomato', emoji: '🍅', h: 0.07, build: () => disc(0.44, 0.07, 0xd8402f) },
+  { id: 'tomato', label: 'Tomato', h: 0.07, build: () => disc(0.44, 0.07, 0xd8402f) },
   {
-    id: 'pickle', label: 'Pickles', emoji: '🥒', h: 0.07,
+    id: 'pickle', label: 'Pickles', h: 0.07,
     build: () => {
       const g = new THREE.Group();
       for (const [px, pz] of [[0.2, 0.1], [-0.2, 0.14], [0.02, -0.22]] as const) {
@@ -677,7 +676,7 @@ const TOPPINGS: ToppingDef[] = [
     },
   },
   {
-    id: 'onion', label: 'Onion', emoji: '🧅', h: 0.05,
+    id: 'onion', label: 'Onion', h: 0.05,
     build: () => {
       const g = new THREE.Group();
       for (const [r, px, pz] of [[0.24, 0.12, 0.1], [0.17, -0.18, -0.08]] as const) {
@@ -690,7 +689,7 @@ const TOPPINGS: ToppingDef[] = [
     },
   },
   {
-    id: 'bacon', label: 'Bacon', emoji: '🥓', h: 0.05,
+    id: 'bacon', label: 'Bacon', h: 0.05,
     build: () => {
       const g = new THREE.Group();
       for (const [pz, rot] of [[0.14, 0.08], [-0.14, -0.06]] as const) {
@@ -702,7 +701,7 @@ const TOPPINGS: ToppingDef[] = [
       return g;
     },
   },
-  { id: 'bun', label: 'Extra Bun', emoji: '🍞', h: 0.14, build: () => disc(0.5, 0.14, 0xe0a04e) },
+  { id: 'bun', label: 'Extra Bun', h: 0.14, build: () => disc(0.5, 0.14, 0xe0a04e) },
 ];
 
 interface BurgerParts {

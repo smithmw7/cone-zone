@@ -29,6 +29,21 @@ import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
 import { LEVELS } from './Levels';
 import { MUSIC_TRACKS } from './AudioSystem';
+import {
+  animateCoinCallout,
+  animateCoinFly,
+  animateDenied,
+  animateEqualizer,
+  animateMoveRow,
+  animateOverlay,
+  animatePointsFly,
+  animateScoreBump,
+  animateToast,
+  animateTrickPopup,
+  makeMeterTween,
+  setPulse,
+  spinCoin,
+} from './UIAnimations';
 
 export type ScreenName = 'start' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
@@ -53,6 +68,7 @@ export interface UICallbacks {
   setMusicVolume(v: number): void;
   getSfxVolume(): number;
   setSfxVolume(v: number): void;
+  previewSfx(): void;
 }
 
 export interface ResultsData {
@@ -105,30 +121,8 @@ function coin3d(parent: HTMLElement, className = 'coin-3d'): HTMLElement {
   uiIcon('token', front);
   const back = el('span', 'coin-3d-face coin-3d-back', inner);
   uiIcon('crown', back);
+  spinCoin(coin);
   return coin;
-}
-
-function animateCoinFly(node: HTMLElement, dx: number, duration: number, delay: number): void {
-  const targetX = -window.innerWidth * 0.4 + dx;
-  const targetY = -window.innerHeight * 0.44;
-  node.style.opacity = '1';
-  node.style.transform = 'translate(0, -8px) scale(1.05)';
-  window.setTimeout(() => {
-    const started = performance.now();
-    const timer = window.setInterval(() => {
-      const t = Math.min(1, (performance.now() - started) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const opacity = t < 0.18 ? t / 0.18 : Math.max(0, 1 - (t - 0.66) / 0.34);
-      const pop = t < 0.18 ? 0.4 + (t / 0.18) * 0.68 : 1.08 - eased * 0.26;
-      node.style.opacity = opacity.toFixed(3);
-      node.style.transform = `translate(${targetX * eased}px, ${targetY * eased}px) scale(${pop})`;
-      if (t >= 1) {
-        window.clearInterval(timer);
-        node.remove();
-      }
-    }, 16);
-  }, delay);
-  window.setTimeout(() => node.remove(), delay + duration + 220);
 }
 
 /** Keep horizontal carousels usable with a mouse as well as touch swipes. */
@@ -206,6 +200,11 @@ export class UIManager {
   private popupLayer!: HTMLElement;
   private balanceEls: HTMLElement[] = [];
   private root: HTMLElement;
+  private setComboMeter!: (value: number) => void;
+  private setBoostMeter!: (value: number) => void;
+  private setSpecialMeter!: (value: number) => void;
+  private timerUrgent = false;
+  private specialReady = false;
 
   constructor(
     container: HTMLElement,
@@ -243,6 +242,10 @@ export class UIManager {
 
   show(name: ScreenName): void {
     for (const [key, node] of this.screens) node.classList.toggle('hidden', key !== name);
+    const hudVisible = name === 'hud';
+    setPulse(this.timerEl, hudVisible && this.timerUrgent, 1.12);
+    const specialLabel = this.specialWrap.querySelector<HTMLElement>('.special-label');
+    if (specialLabel) setPulse(specialLabel, hudVisible && this.specialReady, 1.08, 0.6);
     this.refreshBalances();
     if (name === 'pause') this.refreshPausePanel();
   }
@@ -252,8 +255,8 @@ export class UIManager {
     const id = this.cb.getCurrentTrack();
     const track = MUSIC_TRACKS.find((t) => t.id === id);
     this.pauseTrackName.textContent = track ? track.title : '—';
-    this.musicSlider.value = String(this.cb.getMusicVolume());
-    this.sfxSlider.value = String(this.cb.getSfxVolume());
+    this.syncVolumeControl(this.musicSlider, this.musicMuteButton, this.cb.getMusicVolume());
+    this.syncVolumeControl(this.sfxSlider, this.sfxMuteButton, this.cb.getSfxVolume());
   }
 
   /* ---------------------------------------------------------- */
@@ -353,7 +356,15 @@ export class UIManager {
         if (opt.hex !== undefined) {
           chip.style.background = `#${opt.hex.toString(16).padStart(6, '0')}`;
           chip.title = owned ? opt.label ?? '' : `${opt.label} — ${opt.price} coins`;
-          chip.textContent = owned ? '' : '🔒';
+          chip.replaceChildren();
+          if (!owned) {
+            const lock = document.createElement('img');
+            lock.className = 'chip-lock-icon';
+            lock.src = `${import.meta.env.BASE_URL}ui/icons/lock.png`;
+            lock.alt = '';
+            lock.setAttribute('aria-hidden', 'true');
+            chip.appendChild(lock);
+          }
         } else {
           chip.textContent = owned ? opt.label ?? '' : `${opt.label} · ${opt.price}`;
         }
@@ -367,14 +378,7 @@ export class UIManager {
           if (!this.economy.isOwned(opt.itemKey, opt.price)) {
             if (!this.economy.buy(opt.itemKey, opt.price)) {
               // Can't afford: shake the chip + flash the balance.
-              chip.classList.remove('deny');
-              void chip.offsetWidth; // restart the animation
-              chip.classList.add('deny');
-              for (const b of this.balanceEls) {
-                b.classList.remove('flash');
-                void b.offsetWidth;
-                b.classList.add('flash');
-              }
+              animateDenied(chip, this.balanceEls);
               return;
             }
             renderChip(chip, opt); // unlocked!
@@ -524,6 +528,9 @@ export class UIManager {
     uiIcon('boost', boostWrap, 'ui-icon boost-icon');
     const boostTrack = el('div', 'boost-track', boostWrap);
     this.boostBar = el('div', 'boost-fill', boostTrack);
+    this.setComboMeter = makeMeterTween(this.comboBar, 0);
+    this.setBoostMeter = makeMeterTween(this.boostBar, 1);
+    this.setSpecialMeter = makeMeterTween(this.specialBar, 0);
 
     // Minimal top-right: pause only. Reset lives in the pause menu.
     const topRight = el('div', 'hud-topright', s);
@@ -645,16 +652,21 @@ export class UIManager {
   }
 
   private highlightTrack(id: string): void {
-    for (const [key, card] of this.musicCards) card.classList.toggle('playing', key === id);
+    for (const [key, card] of this.musicCards) {
+      const active = key === id;
+      card.classList.toggle('playing', active);
+      animateEqualizer(card, active);
+    }
   }
 
   private openMusicPlayer(): void {
     this.highlightTrack(this.cb.getCurrentTrack());
-    this.musicOverlay.classList.remove('hidden');
+    animateOverlay(this.musicOverlay, true);
   }
 
   private closeMusicPlayer(): void {
-    this.musicOverlay.classList.add('hidden');
+    animateOverlay(this.musicOverlay, false);
+    for (const card of this.musicCards.values()) animateEqualizer(card, false);
   }
 
   /* ---------------------------------------------------------- */
@@ -706,18 +718,16 @@ export class UIManager {
     const toast = el('div', 'shop-toast', this.shopOverlay);
     uiIcon('token', toast);
     el('span', '', toast, `+${pack.coins.toLocaleString()}`);
-    void toast.offsetWidth;
-    toast.classList.add('show');
-    setTimeout(() => toast.remove(), 1400);
+    animateToast(toast);
   }
 
   private openShop(): void {
     this.refreshBalances();
-    this.shopOverlay.classList.remove('hidden');
+    animateOverlay(this.shopOverlay, true);
   }
 
   private closeShop(): void {
-    this.shopOverlay.classList.add('hidden');
+    animateOverlay(this.shopOverlay, false);
   }
 
   setScore(score: number): void {
@@ -728,14 +738,19 @@ export class UIManager {
     const m = Math.floor(seconds / 60);
     const s = Math.max(0, Math.ceil(seconds % 60));
     this.timerEl.textContent = s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`;
-    this.timerEl.classList.toggle('urgent', seconds < 15);
+    const urgent = seconds < 15;
+    this.timerEl.classList.toggle('urgent', urgent);
+    if (urgent !== this.timerUrgent) {
+      this.timerUrgent = urgent;
+      setPulse(this.timerEl, urgent, 1.12);
+    }
   }
 
   setCombo(chainSize: number, windowFrac: number): void {
     const active = chainSize >= 2;
     this.comboEl.classList.toggle('hidden', !active);
     this.comboEl.textContent = `COMBO ×${chainSize}`;
-    this.comboBar.style.width = `${Math.round(windowFrac * 100)}%`;
+    this.setComboMeter(windowFrac);
   }
 
   /* ---- live move stack ---- */
@@ -758,6 +773,7 @@ export class UIManager {
       if (!row) {
         row = el('div', 'move-row', this.stackWrap);
         this.stackRows.set(m.id, row);
+        animateMoveRow(row);
       }
       if (row.textContent !== m.text) row.textContent = m.text;
       row.classList.toggle('done', !m.active);
@@ -775,10 +791,8 @@ export class UIManager {
     const fly = el('div', 'points-fly', this.popupLayer, `+${total.toLocaleString()} POINTS`);
     fly.style.left = this.stackWrap.style.left;
     fly.style.top = this.stackWrap.style.top;
-    setTimeout(() => fly.remove(), 1200);
-    this.scoreEl.classList.remove('bump');
-    void this.scoreEl.offsetWidth;
-    this.scoreEl.classList.add('bump');
+    animatePointsFly(fly, false);
+    animateScoreBump(this.scoreEl);
   }
 
   /** Bonked mid-chain: the pending points are lost. */
@@ -786,7 +800,7 @@ export class UIManager {
     const fly = el('div', 'points-fly void', this.popupLayer, 'BEEFED IT');
     fly.style.left = this.stackWrap.style.left;
     fly.style.top = this.stackWrap.style.top;
-    setTimeout(() => fly.remove(), 900);
+    animatePointsFly(fly, true);
   }
 
   private coinLine = { collected: 0, total: 0, burger: 1 };
@@ -812,22 +826,25 @@ export class UIManager {
   }
 
   setBoost(frac: number): void {
-    this.boostBar.style.width = `${Math.round(frac * 100)}%`;
+    this.setBoostMeter(frac);
     this.boostBar.classList.toggle('low', frac < 0.25);
   }
 
   setSpecial(frac: number, ready: boolean): void {
-    this.specialBar.style.width = `${Math.round(frac * 100)}%`;
+    this.setSpecialMeter(frac);
     this.specialWrap.classList.toggle('ready', ready);
+    if (ready !== this.specialReady) {
+      this.specialReady = ready;
+      const label = this.specialWrap.querySelector<HTMLElement>('.special-label');
+      if (label) setPulse(label, ready, 1.08, 0.6);
+    }
   }
 
   /** Floating trick text, e.g. "360 Spin! +400". */
   trickPopup(label: string, points: number): void {
     const node = el('div', 'trick-popup', this.popupLayer);
     node.textContent = points > 0 ? `${label} +${points.toLocaleString()}` : label;
-    node.style.setProperty('--drift', `${(Math.random() - 0.5) * 60}px`);
-    node.style.setProperty('--tilt', `${(Math.random() - 0.5) * 10}deg`);
-    setTimeout(() => node.remove(), 1100);
+    animateTrickPopup(node, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 10);
   }
 
   /** Cash-in celebration: a burst of coins flies up to the top HUD + a callout. */
@@ -837,7 +854,7 @@ export class UIManager {
     uiIcon('burger', callout);
     el('span', '', callout, `+${amount.toLocaleString()}`);
     coin3d(callout, 'coin-3d coin-3d-callout');
-    setTimeout(() => callout.remove(), 1300);
+    animateCoinCallout(callout);
     const n = Math.min(16, 7 + Math.round(amount / 50));
     for (let i = 0; i < n; i++) {
       const c = el('div', 'coin-fly', layer);
@@ -868,6 +885,20 @@ export class UIManager {
   private pauseTrackName!: HTMLElement;
   private musicSlider!: HTMLInputElement;
   private sfxSlider!: HTMLInputElement;
+  private musicMuteButton!: HTMLButtonElement;
+  private sfxMuteButton!: HTMLButtonElement;
+
+  private syncVolumeControl(input: HTMLInputElement, button: HTMLButtonElement, value: number): void {
+    const normalized = Math.min(1, Math.max(0, value));
+    input.value = String(normalized);
+    input.style.setProperty('--volume-fill', `${Math.round(normalized * 100)}%`);
+    const muted = normalized <= 0.001;
+    const icon = button.querySelector('img');
+    if (icon) icon.setAttribute('src', `${import.meta.env.BASE_URL}ui/icons/${muted ? 'volume-muted' : 'volume-on'}.png`);
+    button.classList.toggle('muted', muted);
+    button.setAttribute('aria-pressed', String(muted));
+    button.setAttribute('aria-label', muted ? 'Restore volume' : 'Mute');
+  }
 
   private buildPause(): void {
     const s = el('div', 'screen screen-pause hidden', this.root);
@@ -888,7 +919,13 @@ export class UIManager {
 
     // --- Volume sliders ---
     const volWrap = el('div', 'pause-vols', card);
-    const slider = (label: string, get: () => number, set: (v: number) => void): HTMLInputElement => {
+    const slider = (
+      label: string,
+      get: () => number,
+      set: (v: number) => void,
+      fallback: number,
+      preview?: () => void,
+    ): { input: HTMLInputElement; mute: HTMLButtonElement } => {
       const rowEl = el('div', 'vol-row', volWrap);
       el('span', 'vol-label', rowEl, label);
       const input = document.createElement('input');
@@ -898,12 +935,33 @@ export class UIManager {
       input.step = '0.01';
       input.value = String(get());
       input.className = 'vol-slider';
-      input.addEventListener('input', () => set(parseFloat(input.value)));
+      input.setAttribute('aria-label', `${label} volume`);
       rowEl.appendChild(input);
-      return input;
+      const mute = el('button', 'volume-mute', rowEl);
+      const icon = document.createElement('img');
+      icon.className = 'volume-icon';
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      mute.appendChild(icon);
+      let restoreVolume = get() > 0 ? get() : fallback;
+      const apply = (value: number) => {
+        const normalized = Math.min(1, Math.max(0, value));
+        if (normalized > 0) restoreVolume = normalized;
+        set(normalized);
+        this.syncVolumeControl(input, mute, normalized);
+      };
+      input.addEventListener('input', () => apply(parseFloat(input.value)));
+      if (preview) input.addEventListener('change', preview);
+      mute.addEventListener('click', () => apply(get() > 0 ? 0 : restoreVolume));
+      this.syncVolumeControl(input, mute, get());
+      return { input, mute };
     };
-    this.musicSlider = slider('Music', () => this.cb.getMusicVolume(), (v) => this.cb.setMusicVolume(v));
-    this.sfxSlider = slider('Sound', () => this.cb.getSfxVolume(), (v) => this.cb.setSfxVolume(v));
+    const musicControl = slider('Music', () => this.cb.getMusicVolume(), (v) => this.cb.setMusicVolume(v), 0.35);
+    this.musicSlider = musicControl.input;
+    this.musicMuteButton = musicControl.mute;
+    const sfxControl = slider('Sound', () => this.cb.getSfxVolume(), (v) => this.cb.setSfxVolume(v), 0.8, () => this.cb.previewSfx());
+    this.sfxSlider = sfxControl.input;
+    this.sfxMuteButton = sfxControl.mute;
 
     // --- Controls: tucked behind a toggle so the pause card stays clean ---
     const ctrlToggle = el('button', 'btn btn-small pause-controls-toggle', card, 'TRICK BOOK');
@@ -919,34 +977,34 @@ export class UIManager {
       el('span', 'hint-key', row, how);
     };
     section('RIDING');
-    hint('Steer', 'A/D · ←/→ · ◀ ▶');
-    hint('Ollie', 'Space · ⬆');
+    hint('Steer', 'A/D · Left/Right');
+    hint('Ollie', 'Space · Jump');
     hint('Boost', 'hold W · Shift · BOOST');
-    hint('Launch off ramps', '↑ · ⤴');
-    hint('Brake', 'S / ↓');
+    hint('Launch off ramps', 'Up · Launch');
+    hint('Brake', 'S · Down');
     section('AIR TRICKS — tap jump again in the air');
     hint('Kickflip', 'tap jump');
-    hint('Heelflip', '◀ + tap jump');
-    hint('Pop Shove-It', '▶ + tap jump');
-    hint('Impossible', 'S/↓ + tap jump');
+    hint('Heelflip', 'Left + tap jump');
+    hint('Pop Shove-It', 'Right + tap jump');
+    hint('Impossible', 'S/Down + tap jump');
     hint('Spin 180–720', 'steer while airborne');
-    hint('Backflip (×2, ×3…)', 'hold S / ↓ / ▼ in the air');
+    hint('Backflip (×2, ×3…)', 'hold S / Down in the air');
     section('GRABS — hold boost in the air');
     hint('Melon Grab', 'hold boost');
-    hint('Indy Grab', '▶ + hold boost');
-    hint('Stalefish', '◀ + hold boost');
-    hint('Tail Grab', 'S/↓ + hold boost');
+    hint('Indy Grab', 'Right + hold boost');
+    hint('Stalefish', 'Left + hold boost');
+    hint('Tail Grab', 'S/Down + hold boost');
     section('GRINDS — land on rails, ledges & lips');
     hint('50-50 Grind', 'land along the rail');
     hint('Boardslide', 'land across the rail');
     hint('Lip Grind', 'land on a quarter-pipe lip');
     section('SPECIALS — fill the SPECIAL meter, then in the air:');
     hint('Rocket Air', 'hold boost + tap jump');
-    hint('The 900', '◀/▶ + hold boost + tap jump');
-    hint('Christ Air', 'S/↓ + hold boost + tap jump');
+    hint('The 900', 'Left/Right + hold boost + tap jump');
+    hint('Christ Air', 'S/Down + hold boost + tap jump');
     section('VERT — curved ramps & bowls lock you in');
     hint('Pump & trick', 'jump / boost stay in the pipe');
-    hint('Launch out', 'tap ↑ / ⤴ to fly out over the lip');
+    hint('Launch out', 'tap Up / Launch to clear the lip');
     hint('Or ride off', 'drift along the lip to exit sideways');
     section('OTHER');
     hint('Refill boost', 'rest, or grab blue orbs');

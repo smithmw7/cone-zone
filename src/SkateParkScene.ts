@@ -71,7 +71,6 @@ export interface LevelConfig {
   id: string;
   name: string;
   blurb: string;
-  icon: string;
   bounds: { x: number; z: number }; // player clamp half-extents
   spawn: { x: number; z: number; yaw: number };
   physics?: { speedMul?: number; turnMul?: number };

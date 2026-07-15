@@ -27,7 +27,7 @@ export interface InputState {
   steer: number;     // -1 (left) .. 1 (right)
   throttle: number;  // -1 = brake (S / down)
   jump: boolean;
-  boost: boolean;    // W / Shift / 🔥 — meter boost on ground, grab in air
+  boost: boolean;    // W / Shift — meter boost on ground, grab in air
   launch: boolean;   // ↑ / ⤴ — eject up-and-out off a curved ramp (vert lock)
 }
 

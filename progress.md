@@ -58,3 +58,26 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Updated HUD/results language and icons from crate-focused collection to coin-focused collection.
 - Added CSS-3D burger/crown coin flyouts for pickups and drive-through cash-in, with pickup flyouts launching toward the HUD on collection.
 - Validation: production build passes; automated pickup test collected the first coin, increased score to 50, stack height to 2, and saved screenshots under `output/coin-feature/`.
+
+## 2026-07-14 Coin flyout pivot fix
+
+- Rebuilt the CSS-3D flyout transform hierarchy so the complete coin, including both solid faces and its edge, rotates around one centered pivot.
+- Coin flyouts now follow a curved path into the live HUD coin icon instead of using a viewport-estimated endpoint.
+- Verified front, edge, and crown frames at 390 x 844 with square matching bounds, no console errors, and a passing production build; captures are under `output/coin-pivot-fix/`.
+
+## 2026-07-14 Audio controls, PNG icons, and app icon
+
+- Added working music/SFX mute controls with remembered restore levels, synchronized slider fills, persistent volume updates, and SFX adjustment feedback.
+- Music remains audible while paused so the pause-screen mixer can be heard immediately.
+- Removed emoji placeholder fields and replaced the visible lock/mute states with project-local PNG icons.
+- Added a generated 1024 x 1024 low-poly burger skateboard app icon plus manifest, favicon, and Apple touch derivatives.
+- Browser validation at 390 x 844 confirmed exact music/SFX mute restores, localStorage and audio-element synchronization, music continuing through pause, loaded PNG controls/locks, no pictographic placeholder text, and no console errors.
+
+## 2026-07-14 GSAP animation consolidation
+
+- Added GSAP 3.15 and centralized all DOM/presentation motion in `src/UIAnimations.ts`.
+- Replaced 13 CSS keyframe families, every CSS transition, the hand-rolled coin interval tween, and animation cleanup timers with GSAP tweens/timelines.
+- Migrated overlays, shop toast, equalizers, deny feedback, HUD meters/pulses, move rows, score/points/trick feedback, and CSS-3D coin spin/flyouts.
+- Repeating HUD and jukebox loops now stop while hidden and resume only while visible; dynamic animations kill descendant tweens before removing their nodes.
+- Physics, player tricks, debris, trails, collectibles, and camera pose remain in the deterministic game update loop because they are simulation state rather than DOM presentation.
+- Validation: production build and GSAP lifecycle tests pass; full home to Looks to Grill Yard gameplay, jump, pause, and resume flow passed with no browser errors. Screenshots are under `output/gsap-pass/`.

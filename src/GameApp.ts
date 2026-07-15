@@ -117,6 +117,7 @@ export class GameApp {
       setMusicVolume: (v) => this.audio.setMusicVolume(v),
       getSfxVolume: () => this.audio.sfxVolume,
       setSfxVolume: (v) => this.audio.setSfxVolume(v),
+      previewSfx: () => this.audio.click(),
     });
 
     // Any customization change rebuilds the preview model instantly.
@@ -312,11 +313,10 @@ export class GameApp {
     this.ui.trickPopup('Reset', 0);
   }
 
-  /** Pause freezes gameplay updates (and the run timer) but keeps rendering. */
+  /** Pause freezes gameplay updates and the run timer; music stays live for the mixer. */
   private pauseGame(): void {
     if (this.mode !== 'play' || this.paused) return;
     this.paused = true;
-    this.audio.pauseMusic();
     this.audio.stopLoops();
     this.ui.show('pause');
   }
@@ -324,7 +324,6 @@ export class GameApp {
   private resumeGame(): void {
     if (this.mode !== 'play') return;
     this.paused = false;
-    this.audio.resumeMusic();
     this.ui.show('hud');
   }
 

@@ -316,7 +316,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'cone-park',
     name: 'Cone Park',
     blurb: 'The classic neighborhood park. Balanced lines, friendly transitions.',
-    icon: '🚧',
     bounds: { x: 67.5, z: 47.5 },
     spawn: { x: 0, z: 40, yaw: Math.PI },
     theme: {
@@ -330,7 +329,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'mega-canyon',
     name: 'Mega Canyon',
     blurb: 'Desert mega-park. Monster verts, a twin-kicker gap, and a plateau to huck off.',
-    icon: '🏜️',
     bounds: { x: 95, z: 65 },
     spawn: { x: 0, z: 56, yaw: Math.PI },
     theme: {
@@ -345,7 +343,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'powder-peak',
     name: 'Powder Peak',
     blurb: 'Snowboard mountain. Bomb three terraces of powder and catch HUGE drop airs.',
-    icon: '🏔️',
     bounds: { x: 95, z: 65 },
     spawn: { x: 0, z: 56, yaw: Math.PI },
     physics: { speedMul: 1.2, turnMul: 0.85 }, // waxed base: faster, driftier
@@ -362,7 +359,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'sunny-cove',
     name: 'Sunny Cove',
     blurb: 'Beach break. Palms, warm sand and an ocean lapping the coping.',
-    icon: '🏖️',
     bounds: { x: 76, z: 54 },
     spawn: { x: 0, z: 46, yaw: Math.PI },
     theme: {
@@ -378,7 +374,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'canopy-run',
     name: 'Canopy Run',
     blurb: 'Rainforest floor. Dense canopy, a hidden temple, a warm lagoon.',
-    icon: '🌴',
     bounds: { x: 72, z: 64 },
     spawn: { x: 0, z: 56, yaw: Math.PI },
     theme: {
@@ -394,7 +389,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'redwood-coast',
     name: 'Redwood Coast',
     blurb: 'Giant redwoods over a cold, foggy coastline. Bomb the bluffs.',
-    icon: '🌲',
     bounds: { x: 80, z: 54 },
     spawn: { x: 0, z: 46, yaw: Math.PI },
     theme: {
@@ -410,7 +404,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'aqueduct-city',
     name: 'Aqueduct City',
     blurb: 'Concrete channels and a highway of grind rails. Full-speed lines.',
-    icon: '🏙️',
     bounds: { x: 88, z: 60 },
     spawn: { x: 0, z: 52, yaw: Math.PI },
     physics: { speedMul: 1.1 },
@@ -427,7 +420,6 @@ export const LEVELS: LevelConfig[] = [
     id: 'sunset-harbor',
     name: 'Sunset Harbor',
     blurb: 'Golden-hour marina. Pier ramps and glassy water everywhere.',
-    icon: '🌅',
     bounds: { x: 78, z: 58 },
     spawn: { x: 0, z: 50, yaw: Math.PI },
     theme: {
