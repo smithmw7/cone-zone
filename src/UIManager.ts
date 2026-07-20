@@ -16,6 +16,7 @@
  * Touch input: the on-screen buttons set `touchSteer` / `touchJump` /
  * `touchBoost`, which GameApp merges with keyboard state each frame.
  */
+import * as THREE from 'three';
 import {
   CustomizationState,
   BODY_TYPES,
@@ -26,6 +27,7 @@ import {
   TRAILS,
   type BodyType,
 } from './CustomizationState';
+import { buildCharacter } from './CharacterFactory';
 import { COIN_PACKS, type CoinPack } from './Economy';
 import type { Economy } from './Economy';
 import type { StackMoveView } from './ScoreSystem';
@@ -136,6 +138,71 @@ function coin3d(parent: HTMLElement, className = 'coin-3d'): HTMLElement {
   el('span', 'coin-3d-mark', inner, 'S');
   spinCoin(coin);
   return coin;
+}
+
+/**
+ * Render the actual gameplay rigs once for the player picker. Keeping these as
+ * images gives every card the real 3D silhouette without leaving four extra
+ * WebGL contexts running behind the UI.
+ */
+function renderPlayerModels(): Map<BodyType, string> {
+  const images = new Map<BodyType, string>();
+  const renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    preserveDrawingBuffer: true,
+  });
+  const width = 300;
+  const height = 220;
+  const aspect = width / height;
+  renderer.setSize(width, height, false);
+  renderer.setPixelRatio(1.25);
+  renderer.setClearColor(0x000000, 0);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x617249, 2.4));
+  const key = new THREE.DirectionalLight(0xfff1ce, 3.2);
+  key.position.set(4, 7, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x81cfff, 1.5);
+  fill.position.set(-5, 3, 2);
+  scene.add(fill);
+
+  for (const def of BODY_TYPES) {
+    const previewState = new CustomizationState();
+    previewState.bodyType = def.id;
+    const rig = buildCharacter(previewState);
+    rig.root.rotation.y = -0.34;
+    scene.add(rig.root);
+    scene.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(rig.root);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const halfHeight = Math.max(size.y * 0.57, (size.x / aspect) * 0.62);
+    const camera = new THREE.OrthographicCamera(
+      -halfHeight * aspect,
+      halfHeight * aspect,
+      halfHeight,
+      -halfHeight,
+      0.01,
+      100,
+    );
+    camera.position.set(center.x + 3.2, center.y + size.y * 0.04, center.z + 7.8);
+    camera.lookAt(center.x, center.y + size.y * 0.04, center.z);
+    camera.updateProjectionMatrix();
+
+    renderer.render(scene, camera);
+    images.set(def.id, renderer.domElement.toDataURL('image/png'));
+    rig.dispose();
+  }
+
+  renderer.dispose();
+  renderer.forceContextLoss();
+  return images;
 }
 
 /** Keep horizontal carousels usable with a mouse as well as touch swipes. */
@@ -272,17 +339,17 @@ export class UIManager {
 
     const panel = el('div', 'player-select-panel', s);
     const grid = el('div', 'player-select-grid', panel);
+    const playerModels = renderPlayerModels();
     for (const def of BODY_TYPES) {
       const card = el('button', `player-select-card player-${def.id}`, grid);
+      card.setAttribute('aria-label', `Choose ${def.label}`);
       const art = el('div', 'player-card-art', card);
-      if (def.id !== 'burger') {
-        el('span', 'mini-cone-base', art);
-        el('span', 'mini-cone-body', art);
-      }
-      const burger = el('span', 'mini-burger', art);
-      el('span', 'mini-bun mini-bun-top', burger);
-      el('span', 'mini-patty', burger);
-      el('span', 'mini-bun mini-bun-bottom', burger);
+      const model = document.createElement('img');
+      model.className = 'player-model-render';
+      model.src = playerModels.get(def.id) ?? '';
+      model.alt = `${def.label} 3D player model`;
+      model.draggable = false;
+      art.appendChild(model);
 
       el('div', 'card-name', card, def.label);
       el('div', 'card-blurb', card, def.blurb);

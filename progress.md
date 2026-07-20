@@ -153,3 +153,10 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Refined the opening vista with a neutral concrete summit, closer spawn, district-scale covered quarter-pipe landmarks, and an immediately readable three-line drop-in.
 - Ride testing moved the center grind rail into an optional side lane and shifted the hub spine off the main boulevard; an unsteered 12-second run now flows from the summit through multiple features into the lower park without a forced reversal.
 - Perimeter testing drove directly into the rebuilt transition at speed and returned the rider 27 m into the park without sticking or leaving the playable bounds; browser validation reported no console errors.
+
+## 2026-07-20 Player selection grid
+
+- Replaced the horizontally scrolling player strip with an all-visible responsive grid: 2 x 2 on phones and one four-card row on wider and landscape screens.
+- Replaced the CSS placeholder art with transparent renders of the actual gameplay rigs produced by `CharacterFactory`, including the burger mounted on each construction cone.
+- Scaled the renders to each card and allowed their silhouettes to rise slightly above the top edge of the framed art area.
+- Production build passes. Browser validation at 390 x 568, 390 x 844, 844 x 390, and 1280 x 720 confirmed all four cards and the action button are fully visible without grid/page overflow; every card selected the correct player, the next action entered customization, all model images loaded, and no browser errors were reported. Captures are under `output/player-grid/`.
