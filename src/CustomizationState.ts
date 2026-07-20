@@ -7,7 +7,16 @@
  * from it via a change listener.
  */
 
-export type BodyType = 'cone' | 'tube' | 'ducky' | 'finger' | 'teddy' | 'goat';
+export type BodyType =
+  | 'burger'
+  | 'cone'
+  | 'cone-tall'
+  | 'cone-wide'
+  | 'tube'
+  | 'ducky'
+  | 'finger'
+  | 'teddy'
+  | 'goat';
 export type AccessoryId =
   | 'none' | 'beanie' | 'chef' | 'cowboy' | 'party' | 'wizard' | 'tophat' | 'propeller' | 'crown' | 'halo';
 export type GlassesId = 'none' | 'sunglasses' | 'round' | 'star' | 'visor' | 'threed';
@@ -36,46 +45,32 @@ export interface BodyTypeDef {
 
 export const BODY_TYPES: BodyTypeDef[] = [
   {
+    id: 'burger',
+    label: 'Skate Burger',
+    blurb: 'The original stack. Compact, quick, and extra delicious.',
+    stats: { maxSpeed: 12, accel: 15, turnRate: 2.7, jumpPower: 9.8, bounce: 0.0, wobble: 1.0, height: 0.85 },
+    display: { speed: 0.72, turning: 0.78, bounce: 0.2 },
+  },
+  {
     id: 'cone',
-    label: 'Classic Cone',
-    blurb: 'Certified road hero. Balanced, dependable, 100% cone.',
-    stats: { maxSpeed: 12, accel: 15, turnRate: 2.6, jumpPower: 9.6, bounce: 0.0, wobble: 1.0, height: 1.15 },
-    display: { speed: 0.6, turning: 0.65, bounce: 0.2 },
+    label: 'Street Cone',
+    blurb: 'Classic orange construction cone with a burger topper.',
+    stats: { maxSpeed: 11.8, accel: 15, turnRate: 2.75, jumpPower: 9.8, bounce: 0.0, wobble: 1.1, height: 2.0 },
+    display: { speed: 0.65, turning: 0.82, bounce: 0.2 },
   },
   {
-    id: 'tube',
-    label: 'Tall Tube',
-    blurb: 'Long boi. Faster and twirlier, wobbles like a noodle.',
-    stats: { maxSpeed: 13.8, accel: 14, turnRate: 2.9, jumpPower: 9.2, bounce: 0.0, wobble: 1.7, height: 1.75 },
-    display: { speed: 0.85, turning: 0.8, bounce: 0.15 },
+    id: 'cone-tall',
+    label: 'Highway Cone',
+    blurb: 'A tall yellow cone built for speed and big ingredient stacks.',
+    stats: { maxSpeed: 13.6, accel: 14, turnRate: 2.45, jumpPower: 9.4, bounce: 0.0, wobble: 1.45, height: 2.6 },
+    display: { speed: 0.9, turning: 0.58, bounce: 0.15 },
   },
   {
-    id: 'ducky',
-    label: 'Big Ducky',
-    blurb: 'Bath time legend. Slower, but lands with a bonus BOING.',
-    stats: { maxSpeed: 10.5, accel: 13, turnRate: 2.4, jumpPower: 10.4, bounce: 0.45, wobble: 0.8, height: 1.25 },
-    display: { speed: 0.4, turning: 0.5, bounce: 0.95 },
-  },
-  {
-    id: 'finger',
-    label: 'The Finger',
-    blurb: 'A big ol\' pointer. Fully opposable, mostly unstoppable.',
-    stats: { maxSpeed: 12.8, accel: 14, turnRate: 2.7, jumpPower: 10.8, bounce: 0.0, wobble: 1.3, height: 1.6 },
-    display: { speed: 0.8, turning: 0.7, bounce: 0.1 },
-  },
-  {
-    id: 'teddy',
-    label: 'Teddy',
-    blurb: 'Stuffed with courage (and fluff). Nice soft landings.',
-    stats: { maxSpeed: 10, accel: 12, turnRate: 2.5, jumpPower: 9.4, bounce: 0.3, wobble: 0.9, height: 1.3 },
-    display: { speed: 0.45, turning: 0.55, bounce: 0.7 },
-  },
-  {
-    id: 'goat',
-    label: 'The G.O.A.T.',
-    blurb: 'Literally a goat. Jumps like nobody\'s business.',
-    stats: { maxSpeed: 13, accel: 15, turnRate: 3.0, jumpPower: 11.2, bounce: 0.0, wobble: 1.1, height: 1.35 },
-    display: { speed: 0.9, turning: 0.85, bounce: 0.15 },
+    id: 'cone-wide',
+    label: 'Barricade Cone',
+    blurb: 'Wide blue work-zone cone with steady landings and extra bounce.',
+    stats: { maxSpeed: 10.8, accel: 13, turnRate: 2.65, jumpPower: 10.4, bounce: 0.28, wobble: 0.75, height: 1.85 },
+    display: { speed: 0.5, turning: 0.72, bounce: 0.8 },
   },
 ];
 
@@ -151,7 +146,7 @@ export const TRAILS: { id: TrailId; label: string; price: number }[] = [
 type Listener = () => void;
 
 export class CustomizationState {
-  bodyType: BodyType = 'cone';
+  bodyType: BodyType = 'burger';
   bodyColor: number = BODY_COLORS[0].hex;
   accessory: AccessoryId = 'none';
   glasses: GlassesId = 'none';

@@ -51,7 +51,7 @@ export interface ScoreEvents {
 
 const CHAIN_WINDOW = 1.0; // seconds to keep the stack open after a move ends
 const MAX_REPEAT = 4;
-export const RUN_DURATION = 120;
+export const ENDLESS_RUN = true;
 
 interface LiveMove {
   id: number;
@@ -64,7 +64,8 @@ interface LiveMove {
 
 export class ScoreSystem {
   score = 0;
-  timeLeft = RUN_DURATION;
+  timeLeft = 0;
+  readonly endless = ENDLESS_RUN;
   /** Special-trick meter (0..1): fills as stacks convert. */
   special = 0;
   bestChain = 0;    // most moves in one converted stack
@@ -82,7 +83,7 @@ export class ScoreSystem {
 
   startRun(): void {
     this.score = 0;
-    this.timeLeft = RUN_DURATION;
+    this.timeLeft = 0;
     this.special = 0;
     this.bestChain = 0;
     this.movesBanked = 0;
@@ -279,7 +280,7 @@ export class ScoreSystem {
   }
 
   /* ------------------------------------------------------------ */
-  /* Per-frame update: chain window + run timer                    */
+  /* Per-frame update: endless play + chain window                 */
   /* ------------------------------------------------------------ */
 
   update(dt: number): void {
@@ -295,12 +296,7 @@ export class ScoreSystem {
       }
     }
 
-    this.timeLeft -= dt;
-    if (this.timeLeft <= 0) {
-      this.timeLeft = 0;
-      if (this.stack.length > 0) this.convert(); // bank whatever's pending
-      this.running = false;
-      this.events.onTimeUp();
-    }
+    // Runs are intentionally endless for now. `onTimeUp` stays in the event
+    // contract so a timed mode can be restored without touching game flow.
   }
 }

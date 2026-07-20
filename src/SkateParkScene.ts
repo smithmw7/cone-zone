@@ -34,6 +34,7 @@ export interface RailSegment {
 interface Collectible {
   mesh: THREE.Group;
   taken: boolean;
+  spawnIndex: number;
   respawnAt?: number;
 }
 
@@ -65,6 +66,13 @@ export interface LevelTheme {
   water?: WaterTheme;
   /** limit the random sky to these preset names */
   skyPresets?: string[];
+  /** optional authored surface maps; procedural maps remain the fallback */
+  surfaceMaps?: {
+    concrete: string;
+    wood: string;
+    concreteScale?: number;
+    woodScale?: number;
+  };
 }
 
 export interface LevelConfig {
@@ -72,7 +80,7 @@ export interface LevelConfig {
   name: string;
   blurb: string;
   bounds: { x: number; z: number }; // player clamp half-extents
-  spawn: { x: number; z: number; yaw: number };
+  spawn: { x: number; y?: number; z: number; yaw: number };
   physics?: { speedMul?: number; turnMul?: number };
   theme: LevelTheme;
   build(park: SkateParkScene): void;
@@ -87,12 +95,16 @@ const QP_RADIUS_PER_H = 1 / (1 - Math.cos(QP_MAX_ANGLE)); // lip height == h
 // The perimeter is deliberately different from a skate-module quarter pipe:
 // a short, tight 90-degree transition feeds into a tall retaining wall. This
 // lets riders carry momentum upward without presenting a launchable lip.
-const PERIMETER_TRANSITION_H = 1.75;
+const PERIMETER_TRANSITION_H = 3;
 const PERIMETER_WALL_H = 6.5;
 const PERIMETER_CAP_DEPTH = 0.65;
 
 function yawQuat(yaw: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+}
+
+function xzDistance(a: THREE.Vector3, b: THREE.Vector3): number {
+  return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
 /** Solid triangular prism: vertical back at z=0, slope down to z=run. */
@@ -166,14 +178,14 @@ function perimeterPath(lx: number, lz: number, cr: number): { x: number; z: numb
 
 function makePerimeterGeometry(lx: number, lz: number, cr: number, transitionH: number, wallH: number): THREE.BufferGeometry {
   const R = transitionH;
-  // Cross-section: tight quarter-circle transition, then a true vertical wall.
-  // With no inward-facing deck at the top there is nothing for the rider to
-  // catch, boink, or flip against.
-  const PROF = 16;
+  // A true quarter circle begins tangent to the floor and progressively
+  // steepens into the wall. The old cos/cos profile effectively started at
+  // 45 degrees, which made the rounded base feel like a hidden curb.
+  const PROF = 28;
   const prof: { inw: number; y: number }[] = [];
   for (let j = 0; j <= PROF; j++) {
     const a = (j / PROF) * (Math.PI / 2);
-    prof.push({ inw: R * Math.cos(a), y: R * (1 - Math.cos(a)) });
+    prof.push({ inw: R * (1 - Math.sin(a)), y: R * (1 - Math.cos(a)) });
   }
   prof.push({ inw: 0, y: wallH });
 
@@ -326,10 +338,15 @@ export class SkateParkScene {
 
   private collectibles: Collectible[] = [];
   private orbs: Collectible[] = [];
+  private coinSpawnPool: THREE.Vector3[] = [];
+  private boostSpawnPool: THREE.Vector3[] = [];
+  private pickupBlockers: THREE.Box3[] = [];
+  private coinRespawnCursor = 0;
+  private coinsCollectedTotal = 0;
   private spinTime = 0;
   private elapsed = 0;
   private wedgeGeoCache = new Map<string, THREE.BufferGeometry>();
-  private matCache = new Map<number, THREE.MeshLambertMaterial>();
+  private matCache = new Map<number, THREE.MeshStandardMaterial>();
   private woodTex?: THREE.CanvasTexture;
   private concreteTex?: THREE.CanvasTexture;
   private theme: LevelTheme;
@@ -337,13 +354,14 @@ export class SkateParkScene {
   constructor(private physics: PhysicsWorld, readonly config: LevelConfig) {
     this.theme = config.theme;
     this.bounds = config.bounds;
-    this.spawnPoint = new THREE.Vector3(config.spawn.x, 0.5, config.spawn.z);
+    this.spawnPoint = new THREE.Vector3(config.spawn.x, config.spawn.y ?? 0.5, config.spawn.z);
     this.spawnYaw = config.spawn.yaw;
 
     this.buildEnvironment();
     this.buildGroundAndWalls();
     this.buildLampPosts();
     config.build(this);
+    this.finalizePickupLayout();
   }
 
   /**
@@ -352,13 +370,19 @@ export class SkateParkScene {
    * as a world-space triplanar overlay so the two read as clearly different
    * materials, not just two shades of tan.
    */
-  mat(color: number): THREE.MeshLambertMaterial {
+  mat(color: number): THREE.MeshStandardMaterial {
     let m = this.matCache.get(color);
     if (!m) {
-      m = new THREE.MeshLambertMaterial({ color, flatShading: true });
+      const metal = color === this.theme.rail || color === 0xe8e2d2;
       const surf = this.surfaceFor(color);
-      if (surf === 'wood') this.applyTriplanar(m, this.woodTexture(), 0.5);
-      else if (surf === 'concrete') this.applyTriplanar(m, this.concreteTexture(), 0.32);
+      m = new THREE.MeshStandardMaterial({
+        color,
+        flatShading: true,
+        metalness: metal ? 0.48 : 0,
+        roughness: metal ? 0.46 : surf === 'concrete' ? 0.86 : 0.72,
+      });
+      if (surf === 'wood') this.applyTriplanar(m, this.woodTexture(), this.theme.surfaceMaps?.woodScale ?? 0.5);
+      else if (surf === 'concrete') this.applyTriplanar(m, this.concreteTexture(), this.theme.surfaceMaps?.concreteScale ?? 0.32);
       this.matCache.set(color, m);
     }
     return m;
@@ -373,11 +397,24 @@ export class SkateParkScene {
   }
 
   private woodTexture(): THREE.CanvasTexture {
-    return (this.woodTex ??= makeWoodTexture());
+    return (this.woodTex ??= this.theme.surfaceMaps
+      ? this.loadSurfaceTexture(this.theme.surfaceMaps.wood)
+      : makeWoodTexture());
   }
 
   private concreteTexture(): THREE.CanvasTexture {
-    return (this.concreteTex ??= makeConcreteTexture());
+    return (this.concreteTex ??= this.theme.surfaceMaps
+      ? this.loadSurfaceTexture(this.theme.surfaceMaps.concrete)
+      : makeConcreteTexture());
+  }
+
+  private loadSurfaceTexture(path: string): THREE.CanvasTexture {
+    const url = `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+    const tex = new THREE.TextureLoader().load(url) as THREE.CanvasTexture;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 16;
+    return tex;
   }
 
   /**
@@ -386,7 +423,7 @@ export class SkateParkScene {
    * on boxes, UV-less wedges, lathes and extrudes at a constant grain scale.
    * The texture MULTIPLIES the base color (see the texture generators).
    */
-  private applyTriplanar(m: THREE.MeshLambertMaterial, map: THREE.CanvasTexture, scale: number): void {
+  private applyTriplanar(m: THREE.MeshStandardMaterial, map: THREE.CanvasTexture, scale: number): void {
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uTriMap = { value: map };
       shader.uniforms.uTriScale = { value: scale };
@@ -443,6 +480,7 @@ vec3 triplanarColor() {
       } else if (kind === 'box') {
         const p = (obj.geometry as THREE.BoxGeometry).parameters;
         this.physics.addBox(pos, new THREE.Vector3(p.width, p.height, p.depth), quat);
+        this.pickupBlockers.push(new THREE.Box3().setFromObject(obj).expandByScalar(0.42));
       }
     });
   }
@@ -613,7 +651,7 @@ vec3 triplanarColor() {
   }
 
   /** Bowl: revolved crater — outer bank skirt, rim deck, inner transition. */
-  moduleBowl(x: number, z: number, h: number, y = 0): void {
+  moduleBowl(x: number, z: number, h: number, y = 0, finish: 'wood' | 'concrete' = 'wood'): void {
     const R = h * QP_RADIUS_PER_H;
     const sinMax = Math.sin(QP_MAX_ANGLE);
     const rFlat = 3 + h;
@@ -633,8 +671,19 @@ vec3 triplanarColor() {
     pts.push(new THREE.Vector2(rOut, floor + h));
     pts.push(new THREE.Vector2(rBase, -0.25));
     const geo = new THREE.LatheGeometry(pts, 28);
-    const bowlMat = new THREE.MeshLambertMaterial({ color: this.theme.rampAlt, flatShading: true, side: THREE.DoubleSide });
-    this.applyTriplanar(bowlMat, this.woodTexture(), 0.5);
+    const bowlMat = new THREE.MeshStandardMaterial({
+      color: finish === 'concrete' ? this.theme.groundDark : this.theme.rampAlt,
+      flatShading: true,
+      side: THREE.DoubleSide,
+      roughness: finish === 'concrete' ? 0.88 : 0.72,
+    });
+    this.applyTriplanar(
+      bowlMat,
+      finish === 'concrete' ? this.concreteTexture() : this.woodTexture(),
+      finish === 'concrete'
+        ? this.theme.surfaceMaps?.concreteScale ?? 0.32
+        : this.theme.surfaceMaps?.woodScale ?? 0.5,
+    );
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.add(this.solidMesh(geo, bowlMat, 'trimesh'));
@@ -668,6 +717,7 @@ vec3 triplanarColor() {
     const b = new THREE.Vector3(bx, by, bz);
     this.pushRail(a, b);
     this.physics.addCylinder(a, b, 0.06);
+    this.pickupBlockers.push(new THREE.Box3().setFromPoints([a, b]).expandByScalar(0.62));
 
     const dir = b.clone().sub(a);
     const length = dir.length();
@@ -721,6 +771,7 @@ vec3 triplanarColor() {
     const railB = new THREE.Vector3(0, 0.55, platLen / 2 + steps * stepD + 0.6).applyQuaternion(quat).add(origin);
     this.pushRail(railA, railB);
     this.physics.addCylinder(railA, railB, 0.05);
+    this.pickupBlockers.push(new THREE.Box3().setFromPoints([railA, railB]).expandByScalar(0.62));
     const railMat = this.mat(this.theme.rail);
     const dir = railB.clone().sub(railA);
     const len = dir.length();
@@ -753,6 +804,183 @@ vec3 triplanarColor() {
       g.add(wedge);
     }
     this.register(g);
+  }
+
+  /** Signature two-bank funbox with a short deck rail for transfers or grinds. */
+  moduleAFrame(x: number, z: number, yaw: number, h: number, w: number, topLen: number): void {
+    this.moduleFunbox(x, z, yaw, h, w, topLen);
+    const quat = yawQuat(yaw);
+    const origin = new THREE.Vector3(x, 0, z);
+    const railX = w * 0.28;
+    const a = new THREE.Vector3(railX, h + 0.32, -topLen * 0.42).applyQuaternion(quat).add(origin);
+    const b = new THREE.Vector3(railX, h + 0.32, topLen * 0.42).applyQuaternion(quat).add(origin);
+    this.moduleRail(a.x, a.y, a.z, b.x, b.y, b.z);
+  }
+
+  /** Tall hero quarter pipe with a striped canopy and deck guard silhouette. */
+  moduleHeroQuarter(x: number, z: number, yaw: number, h: number, w: number): void {
+    const deckDepth = 3.2;
+    this.moduleQuarterPipe(x, z, yaw, h, w, deckDepth);
+
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const dark = this.mat(0x3d342f);
+    const rail = this.mat(this.theme.rail);
+    const striped = new THREE.MeshLambertMaterial({ map: this.stripeTexture(), flatShading: true });
+
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 0.82, 0.24, 4.6), striped);
+    roof.position.set(0, h + 4.25, 1.45);
+    roof.rotation.x = -0.04;
+    roof.castShadow = true;
+    g.add(roof);
+
+    for (const sx of [-1, 1]) {
+      for (const sz of [0.2, 2.7]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 4.1, 7), dark);
+        post.position.set(sx * w * 0.38, h + 2.05, sz);
+        post.castShadow = true;
+        g.add(post);
+      }
+    }
+
+    const backRail = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, w * 0.76, 8), rail);
+    backRail.rotation.z = Math.PI / 2;
+    backRail.position.set(0, h + 1.0, 0.18);
+    backRail.castShadow = true;
+    g.add(backRail);
+    for (let i = 0; i < 6; i++) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1, 7), rail);
+      post.position.set(-w * 0.36 + (i / 5) * w * 0.72, h + 0.5, 0.18);
+      post.castShadow = true;
+      g.add(post);
+    }
+    this.scene.add(g);
+  }
+
+  /** Grindable neighborhood picnic table built from a tiny repeated box kit. */
+  modulePicnicTable(x: number, z: number, yaw: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const wood = this.mat(this.theme.rampAlt);
+    const dark = this.mat(0x4d4037);
+
+    const addBox = (w: number, h: number, d: number, px: number, py: number, pz: number, collide = false) => {
+      const mesh = collide
+        ? this.solidMesh(new THREE.BoxGeometry(w, h, d), wood, 'box')
+        : new THREE.Mesh(new THREE.BoxGeometry(w, h, d), dark);
+      mesh.position.set(px, py, pz);
+      mesh.castShadow = true;
+      g.add(mesh);
+    };
+    addBox(3.6, 0.18, 1.35, 0, 1.02, 0, true);
+    addBox(3.6, 0.16, 0.45, 0, 0.58, -1.05, true);
+    addBox(3.6, 0.16, 0.45, 0, 0.58, 1.05, true);
+    for (const sx of [-1, 1]) {
+      addBox(0.18, 0.92, 0.18, sx * 1.25, 0.46, -0.42);
+      addBox(0.18, 0.92, 0.18, sx * 1.25, 0.46, 0.42);
+    }
+    this.register(g);
+
+    const quat = yawQuat(yaw);
+    const origin = new THREE.Vector3(x, 0, z);
+    const a = new THREE.Vector3(-1.7, 1.12, 0).applyQuaternion(quat).add(origin);
+    const b = new THREE.Vector3(1.7, 1.12, 0).applyQuaternion(quat).add(origin);
+    this.pushRail(a, b);
+  }
+
+  /** Concrete planter used to frame lanes and add close-range scale. */
+  modulePlanter(x: number, z: number, yaw: number, length = 4): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const box = this.solidMesh(
+      new THREE.BoxGeometry(length, 0.65, 1.8),
+      this.mat(this.theme.groundDark),
+      'box',
+    );
+    box.position.y = 0.325;
+    g.add(box);
+    for (const px of [-length * 0.28, length * 0.28]) {
+      const bush = this.makeBush();
+      bush.position.set(px, 0.65, 0);
+      bush.scale.setScalar(0.62);
+      g.add(bush);
+    }
+    this.register(g);
+  }
+
+  /** Visual-only timber fence for a layered neighborhood perimeter. */
+  moduleFenceLine(x: number, z: number, yaw: number, length: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const timber = this.mat(0x55463d);
+    const sections = Math.max(2, Math.round(length / 1.4));
+    const width = length / sections;
+    for (let i = 0; i < sections; i++) {
+      const board = new THREE.Mesh(new THREE.BoxGeometry(width - 0.06, 2.7, 0.16), timber);
+      board.position.set(-length / 2 + width * (i + 0.5), 1.35, 0);
+      board.castShadow = true;
+      g.add(board);
+    }
+    for (let i = 0; i <= sections; i += 4) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.05, 0.28), timber);
+      post.position.set(-length / 2 + width * i, 1.525, 0);
+      post.castShadow = true;
+      g.add(post);
+    }
+    this.scene.add(g);
+  }
+
+  /** Simple low-poly suburban house silhouette for the non-playable backdrop. */
+  moduleSuburbanHouse(x: number, z: number, yaw: number, color: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const walls = this.mat(color);
+    const roofMat = this.mat(0x65524a);
+    const trim = this.mat(0xf2eee4);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(8, 4.2, 6), walls);
+    body.position.y = 2.1;
+    body.castShadow = true;
+    g.add(body);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(5.4, 2.8, 4), roofMat);
+    roof.position.y = 5.5;
+    roof.rotation.y = Math.PI / 4;
+    roof.scale.z = 0.78;
+    roof.castShadow = true;
+    g.add(roof);
+    for (const sx of [-1, 1]) {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.5, 0.12), trim);
+      win.position.set(sx * 2.1, 2.25, 3.05);
+      g.add(win);
+    }
+    this.scene.add(g);
+  }
+
+  /** Striped open-air canopy used to turn a few props into a strong landmark. */
+  modulePatioCanopy(x: number, z: number, yaw: number, w: number, d: number): void {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    const frame = this.mat(0x443a35);
+    const striped = new THREE.MeshLambertMaterial({ map: this.stripeTexture(), flatShading: true });
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w, 0.24, d), striped);
+    roof.position.y = 3.5;
+    roof.rotation.x = -0.035;
+    roof.castShadow = true;
+    g.add(roof);
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 3.5, 7), frame);
+        post.position.set(sx * (w / 2 - 0.35), 1.75, sz * (d / 2 - 0.35));
+        post.castShadow = true;
+        g.add(post);
+      }
+    }
+    this.scene.add(g);
   }
 
   /* ---------------- Burger Shack drive-through ---------------- */
@@ -880,7 +1108,7 @@ vec3 triplanarColor() {
     const ext = Math.max(this.bounds.x, this.bounds.z);
     sun.position.set(ext * 0.7, ext * 0.9, ext * 0.5);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(4096, 4096);
     sun.shadow.camera.left = -ext - 20;
     sun.shadow.camera.right = ext + 20;
     sun.shadow.camera.top = ext + 20;
@@ -968,7 +1196,7 @@ vec3 triplanarColor() {
     }
   }
 
-  private crownMat(alt = false): THREE.MeshLambertMaterial {
+  private crownMat(alt = false): THREE.MeshStandardMaterial {
     return this.mat(alt && this.theme.treeCrown2 !== undefined ? this.theme.treeCrown2 : this.theme.treeCrown);
   }
 
@@ -1160,8 +1388,13 @@ vec3 triplanarColor() {
     const lz = this.bounds.z + 0.5;
     const cr = Math.min(16, this.bounds.x * 0.5, this.bounds.z * 0.5);
     const geo = makePerimeterGeometry(lx, lz, cr, PERIMETER_TRANSITION_H, PERIMETER_WALL_H);
-    const mat = new THREE.MeshLambertMaterial({ color: this.theme.groundDark, flatShading: true, side: THREE.DoubleSide });
-    this.applyTriplanar(mat, this.concreteTexture(), 0.32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: this.theme.groundDark,
+      flatShading: true,
+      roughness: 0.9,
+      side: THREE.DoubleSide,
+    });
+    this.applyTriplanar(mat, this.concreteTexture(), this.theme.surfaceMaps?.concreteScale ?? 0.32);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1213,12 +1446,78 @@ vec3 triplanarColor() {
   /* Collectibles: gold coins & blue boost orbs                       */
   /* ================================================================ */
 
-  /**
-   * Gold coins. Each one collected drops a random topping onto the burger
-   * and still banks a coin.
-   */
-  placeCollectibles(spots: [number, number, number][]): void {
+  private validatePickupSpots(
+    spots: [number, number, number][],
+    kind: 'coin' | 'boost',
+  ): THREE.Vector3[] {
+    const accepted: THREE.Vector3[] = [];
+    const sameKindSpacing = kind === 'coin' ? 2.6 : 5;
+    const reasonAt = (point: THREE.Vector3): string => {
+      const { x, z } = point;
+      if (Math.abs(x) > this.bounds.x - 2 || Math.abs(z) > this.bounds.z - 2) {
+        return 'outside the safe play area';
+      }
+      if (this.pickupBlockers.some((box) => box.containsPoint(point))) {
+        return 'intersects solid geometry or a grind rail';
+      }
+      if (accepted.some((other) => xzDistance(point, other) < sameKindSpacing)) {
+        return `is within ${sameKindSpacing}m of another ${kind}`;
+      }
+      if (
+        kind === 'boost' &&
+        this.coinSpawnPool.some((coin) => xzDistance(point, coin) < 3.4)
+      ) {
+        return 'is within 3.4m of a coin spawn';
+      }
+      return '';
+    };
+
     for (const [x, y, z] of spots) {
+      const requested = new THREE.Vector3(x, y, z);
+      let point = requested;
+      let reason = reasonAt(point);
+      if (reason) {
+        let replacement: THREE.Vector3 | undefined;
+        const radii = [3, 4.5, 6, 8, 10, 12];
+        for (const radius of radii) {
+          for (let step = 0; step < 16; step++) {
+            const angle = (step / 16) * Math.PI * 2;
+            const candidate = new THREE.Vector3(
+              x + Math.cos(angle) * radius,
+              y,
+              z + Math.sin(angle) * radius,
+            );
+            if (!reasonAt(candidate)) {
+              replacement = candidate;
+              break;
+            }
+          }
+          if (replacement) break;
+        }
+        if (!replacement) {
+          console.warn(`[pickup-layout] ${kind} at ${x},${y},${z} rejected: ${reason}`);
+          continue;
+        }
+        point = replacement;
+        console.info(
+          `[pickup-layout] moved ${kind} ${x},${y},${z} to ${point.x.toFixed(1)},${point.y.toFixed(1)},${point.z.toFixed(1)} (${reason})`,
+        );
+      }
+      accepted.push(point);
+    }
+    return accepted;
+  }
+
+  /**
+   * Gold coins use a larger approved pool than the number visible at once.
+   * Collected coins return at alternate clear spots, keeping endless runs
+   * populated without stacking pickups on top of one another.
+   */
+  placeCollectibles(spots: [number, number, number][], activeCount = spots.length): void {
+    this.coinSpawnPool = this.validatePickupSpots(spots, 'coin');
+    const visibleCount = Math.min(activeCount, this.coinSpawnPool.length);
+    for (let i = 0; i < visibleCount; i++) {
+      const { x, y, z } = this.coinSpawnPool[i];
       const g = new THREE.Group();
       const coin = createBurgerCrownCoin({ radius: 0.42, depth: 0.13, glow: true });
       coin.rotation.y = Math.random() * Math.PI * 2;
@@ -1226,16 +1525,19 @@ vec3 triplanarColor() {
       g.position.set(x, y, z);
       g.userData.baseY = y;
       this.scene.add(g);
-      this.collectibles.push({ mesh: g, taken: false });
+      this.collectibles.push({ mesh: g, taken: false, spawnIndex: i });
     }
+    this.coinRespawnCursor = visibleCount;
     this.totalCollectibles = this.collectibles.length;
   }
 
   placeBoostOrbs(spots: [number, number, number][]): void {
+    this.boostSpawnPool = this.validatePickupSpots(spots, 'boost');
     const orbMat = new THREE.MeshLambertMaterial({
       color: 0x59c8ff, emissive: 0x2a8aff, emissiveIntensity: 1.1, flatShading: true,
     });
-    for (const [x, y, z] of spots) {
+    for (let i = 0; i < this.boostSpawnPool.length; i++) {
+      const { x, y, z } = this.boostSpawnPool[i];
       const g = new THREE.Group();
       const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), orbMat);
       const shell = new THREE.Mesh(
@@ -1245,8 +1547,61 @@ vec3 triplanarColor() {
       g.add(orb, shell);
       g.position.set(x, y, z);
       this.scene.add(g);
-      this.orbs.push({ mesh: g, taken: false });
+      this.orbs.push({ mesh: g, taken: false, spawnIndex: i });
     }
+  }
+
+  /** Recheck after the level builder adds any geometry placed after pickups. */
+  private finalizePickupLayout(): void {
+    const coinRequests = this.coinSpawnPool.map((spot) => [spot.x, spot.y, spot.z] as [number, number, number]);
+    const boostRequests = this.boostSpawnPool.map((spot) => [spot.x, spot.y, spot.z] as [number, number, number]);
+    this.coinSpawnPool = [];
+    this.coinSpawnPool = this.validatePickupSpots(coinRequests, 'coin');
+    this.boostSpawnPool = this.validatePickupSpots(boostRequests, 'boost');
+
+    for (let i = 0; i < this.collectibles.length; i++) {
+      const spot = this.coinSpawnPool[i];
+      if (!spot) {
+        this.collectibles[i].taken = true;
+        this.collectibles[i].mesh.visible = false;
+        continue;
+      }
+      this.collectibles[i].spawnIndex = i;
+      this.collectibles[i].mesh.position.copy(spot);
+      this.collectibles[i].mesh.userData.baseY = spot.y;
+    }
+    for (let i = 0; i < this.orbs.length; i++) {
+      const spot = this.boostSpawnPool[i];
+      if (!spot) {
+        this.orbs[i].taken = true;
+        this.orbs[i].mesh.visible = false;
+        continue;
+      }
+      this.orbs[i].spawnIndex = i;
+      this.orbs[i].mesh.position.copy(spot);
+    }
+    this.totalCollectibles = Math.min(this.totalCollectibles, this.coinSpawnPool.length);
+  }
+
+  private respawnCoin(coin: Collectible, playerPos: THREE.Vector3): boolean {
+    for (let attempts = 0; attempts < this.coinSpawnPool.length; attempts++) {
+      const index = this.coinRespawnCursor++ % this.coinSpawnPool.length;
+      const spot = this.coinSpawnPool[index];
+      if (xzDistance(spot, playerPos) < 5) continue;
+      if (this.collectibles.some((other) =>
+        other !== coin && !other.taken && xzDistance(spot, other.mesh.position) < 2.6
+      )) continue;
+      if (this.orbs.some((orb) => !orb.taken && xzDistance(spot, orb.mesh.position) < 3.4)) continue;
+      coin.spawnIndex = index;
+      coin.mesh.position.copy(spot);
+      coin.mesh.userData.baseY = spot.y;
+      coin.mesh.rotation.y = Math.random() * Math.PI * 2;
+      coin.taken = false;
+      coin.respawnAt = undefined;
+      coin.mesh.visible = true;
+      return true;
+    }
+    return false;
   }
 
   update(dt: number, playerPos: THREE.Vector3): { coins: number; orbs: number } {
@@ -1265,7 +1620,10 @@ vec3 triplanarColor() {
     }
     let coins = 0;
     for (const c of this.collectibles) {
-      if (c.taken) continue;
+      if (c.taken) {
+        if (c.respawnAt !== undefined && this.elapsed >= c.respawnAt) this.respawnCoin(c, playerPos);
+        continue;
+      }
       c.mesh.rotation.y += dt * 1.65;
       c.mesh.position.y = c.mesh.userData.baseY + Math.sin(this.spinTime * 2.5 + c.mesh.position.x) * 0.07;
       const glow = c.mesh.getObjectByName('coin-glow');
@@ -1276,6 +1634,8 @@ vec3 triplanarColor() {
       if (c.mesh.position.distanceTo(playerPos) < 1.5) {
         c.taken = true;
         c.mesh.visible = false;
+        c.respawnAt = this.elapsed + 8;
+        this.coinsCollectedTotal++;
         coins++;
       }
     }
@@ -1302,15 +1662,55 @@ vec3 triplanarColor() {
   }
 
   get collectedCount(): number {
-    return this.collectibles.filter((c) => c.taken).length;
+    return this.coinsCollectedTotal;
   }
 
   resetCollectibles(): void {
-    for (const c of [...this.collectibles, ...this.orbs]) {
+    this.coinsCollectedTotal = 0;
+    this.coinRespawnCursor = this.collectibles.length;
+    for (let i = 0; i < this.collectibles.length; i++) {
+      const c = this.collectibles[i];
+      c.spawnIndex = i;
+      const spot = this.coinSpawnPool[i];
+      c.mesh.position.copy(spot);
+      c.mesh.userData.baseY = spot.y;
       c.taken = false;
       c.respawnAt = undefined;
       c.mesh.visible = true;
     }
+    for (const c of this.orbs) {
+      const spot = this.boostSpawnPool[c.spawnIndex];
+      c.mesh.position.copy(spot);
+      c.taken = false;
+      c.respawnAt = undefined;
+      c.mesh.visible = true;
+    }
+  }
+
+  pickupDiagnostics(): {
+    coinPool: number;
+    activeCoins: number;
+    boosts: number;
+    minimumCoinSpacing: number;
+    minimumCoinBoostSpacing: number;
+    geometryOverlaps: number;
+  } {
+    const pairMin = (a: THREE.Vector3[], b: THREE.Vector3[], same: boolean): number => {
+      let min = Infinity;
+      for (let i = 0; i < a.length; i++) {
+        for (let j = same ? i + 1 : 0; j < b.length; j++) min = Math.min(min, xzDistance(a[i], b[j]));
+      }
+      return Number.isFinite(min) ? Number(min.toFixed(2)) : 0;
+    };
+    return {
+      coinPool: this.coinSpawnPool.length,
+      activeCoins: this.collectibles.filter((coin) => !coin.taken).length,
+      boosts: this.orbs.length,
+      minimumCoinSpacing: pairMin(this.coinSpawnPool, this.coinSpawnPool, true),
+      minimumCoinBoostSpacing: pairMin(this.coinSpawnPool, this.boostSpawnPool, false),
+      geometryOverlaps: [...this.coinSpawnPool, ...this.boostSpawnPool]
+        .filter((spot) => this.pickupBlockers.some((box) => box.containsPoint(spot))).length,
+    };
   }
 
   /** Free GPU resources when switching levels. */

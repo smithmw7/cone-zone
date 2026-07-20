@@ -16,7 +16,7 @@
  * for the chunky PS2 look, and cheap canvas textures for deck art.
  */
 import * as THREE from 'three';
-import { CustomizationState, type BoardId } from './CustomizationState';
+import { CustomizationState, type BoardId, type BodyType } from './CustomizationState';
 
 export interface CharacterRig {
   root: THREE.Group;
@@ -195,7 +195,7 @@ function addEyes(group: THREE.Group, y: number, z: number, spread: number, scale
   }
 }
 
-function buildConeBody(color: number): BodyBuild {
+function buildConeBody(color: number, eyes = true): BodyBuild {
   const group = new THREE.Group();
   const base = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.85), lambert(color)));
   base.position.y = 0.06;
@@ -211,11 +211,11 @@ function buildConeBody(color: number): BodyBuild {
   stripe.position.y = 0.78;
   group.add(stripe);
 
-  addEyes(group, 0.92, 0.16, 0.1);
+  if (eyes) addEyes(group, 0.92, 0.16, 0.1);
   return { group, topAnchor: new THREE.Vector3(0, 1.17, 0), eyeAnchor: new THREE.Vector3(0, 0.92, 0.14) };
 }
 
-function buildTubeBody(color: number): BodyBuild {
+function buildTubeBody(color: number, eyes = true): BodyBuild {
   const group = new THREE.Group();
   const base = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), lambert(color)));
   base.position.y = 0.06;
@@ -234,8 +234,35 @@ function buildTubeBody(color: number): BodyBuild {
     group.add(stripe);
   }
 
-  addEyes(group, 1.52, 0.16, 0.09);
+  if (eyes) addEyes(group, 1.52, 0.16, 0.09);
   return { group, topAnchor: new THREE.Vector3(0, 1.78, 0), eyeAnchor: new THREE.Vector3(0, 1.52, 0.13) };
+}
+
+function buildWideConeBody(color: number): BodyBuild {
+  const group = new THREE.Group();
+  const base = shadowed(new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.14, 1.08), lambert(darken(color, 0.82))));
+  base.position.y = 0.07;
+  group.add(base);
+
+  const cone = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.52, 0.84, 12), lambert(color)));
+  cone.position.y = 0.55;
+  group.add(cone);
+
+  for (const [y, top, bottom] of [[0.49, 0.36, 0.41], [0.72, 0.25, 0.3]] as const) {
+    const stripe = shadowed(new THREE.Mesh(
+      new THREE.CylinderGeometry(top, bottom, 0.13, 12),
+      lambert(0xf5f0e6),
+    ));
+    stripe.position.y = y;
+    group.add(stripe);
+  }
+  return { group, topAnchor: new THREE.Vector3(0, 1.0, 0), eyeAnchor: new THREE.Vector3() };
+}
+
+function buildPlayableCone(type: BodyType): BodyBuild {
+  if (type === 'cone-tall') return buildTubeBody(0xffc928, false);
+  if (type === 'cone-wide') return buildWideConeBody(0x3188e8);
+  return buildConeBody(0xff7418, false);
 }
 
 function buildDuckyBody(color: number): BodyBuild {
@@ -1024,9 +1051,18 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
   body.position.y = 0.16;
   tilt.add(body);
 
-  // SKATE BURGER era: every skater is the Burger (see buildLegacyBody for
-  // the hidden cone crew). Hats/sunglasses ride the top bun up the stack.
+  // The burger can ride solo or sit on one of the construction cones. The
+  // BurgerStack always owns the burger itself, so collected ingredients stack
+  // above it identically for every player option.
+  const isConePlayer = state.bodyType === 'cone' || state.bodyType === 'cone-tall' || state.bodyType === 'cone-wide';
+  let burgerOffset = 0;
+  if (isConePlayer) {
+    const cone = buildPlayableCone(state.bodyType);
+    body.add(cone.group);
+    burgerOffset = cone.topAnchor.y + 0.02;
+  }
   const burger = buildBurgerBody();
+  burger.group.position.y = burgerOffset;
   body.add(burger.group);
 
   const spinners: THREE.Object3D[] = [];
@@ -1048,7 +1084,7 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
     wheels,
     spinners,
     trailAnchor,
-    height: 0.85,
+    height: burgerOffset + 0.85,
     dispose() {
       rig.stack?.disposeAll();
       root.traverse((obj) => {
@@ -1064,6 +1100,6 @@ export function buildCharacter(state: CustomizationState): CharacterRig {
       root.removeFromParent();
     },
   };
-  rig.stack = new BurgerStack(burger, root, (h) => (rig.height = h));
+  rig.stack = new BurgerStack(burger, root, (h) => (rig.height = burgerOffset + h));
   return rig;
 }

@@ -10,7 +10,7 @@
  *   PhysicsWorld        Rapier world + ground raycasts
  *   SkateParkScene      level visuals, colliders, rails, collectibles
  *   PlayerController    arcade movement + character animation
- *   ScoreSystem         points, combos, run timer
+ *   ScoreSystem         points and combos for the endless run
  *   TrailSystem         customizable particle trail
  *
  * Two Three.js scenes share one renderer: a small "showroom" scene for the
@@ -30,7 +30,7 @@ import { DebugView } from './DebugView';
 import { Economy } from './Economy';
 import { AudioSystem } from './AudioSystem';
 
-type AppMode = 'start' | 'customize' | 'levels' | 'play' | 'results';
+type AppMode = 'start' | 'select' | 'customize' | 'levels' | 'play' | 'results';
 
 export class GameApp {
   private renderer: THREE.WebGLRenderer;
@@ -74,6 +74,9 @@ export class GameApp {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // mobile perf cap
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
     this.renderer.domElement.classList.add('game-canvas');
     container.appendChild(this.renderer.domElement);
 
@@ -99,12 +102,15 @@ export class GameApp {
     });
 
     this.ui = new UIManager(this.container, this.state, this.economy, {
-      onPlay: () => this.setMode('customize'),
+      onPlay: () => this.setMode('select'),
+      onBodyPicked: () => {/* preview rebuild handled by state.onChange */},
+      onSelectConfirm: () => this.setMode('customize'),
       onSkate: () => this.setMode('levels'),
       onLevelPicked: (id) => {
         void this.loadLevel(levelById(id)).then(() => this.startRun());
       },
       onCustomize: () => this.setMode('customize'),
+      onBackToSelect: () => this.setMode('select'),
       onReset: () => this.respawnPlayer(),
       onRetry: () => this.startRun(),
       onExitToMenu: () => this.setMode('start'),
@@ -122,7 +128,7 @@ export class GameApp {
 
     // Any customization change rebuilds the preview model instantly.
     this.state.onChange(() => {
-      if (this.mode === 'customize') this.rebuildPreview();
+      if (this.mode === 'select' || this.mode === 'customize') this.rebuildPreview();
       this.ui.syncCustomizeChips();
     });
 
@@ -239,12 +245,13 @@ export class GameApp {
         this.ui.show('start');
         break;
       case 'customize':
+      case 'select':
         this.score.stop();
         this.previewPodium.visible = true;
         this.previewFloor.visible = true;
         this.rebuildPreview();
-        this.ui.syncCustomizeChips(); // highlight the chips for the current state
-        this.ui.show('customize');
+        if (mode === 'customize') this.ui.syncCustomizeChips();
+        this.ui.show(mode);
         break;
       case 'levels':
         this.score.stop();
@@ -464,10 +471,12 @@ export class GameApp {
     return JSON.stringify({
       coordinateSystem: 'Three.js world: +X right, +Y up, +Z forward',
       mode: this.mode,
+      selectedPlayer: this.state.bodyType,
       paused: this.paused,
       level: this.currentLevelId,
       score: this.score?.score ?? 0,
-      timeLeft: this.score?.timeLeft ?? 0,
+      endless: this.score?.endless ?? false,
+      timeLeft: this.score?.endless ? null : this.score?.timeLeft ?? 0,
       stackHeight: this.playerRig?.stack?.count ?? 1,
       coinsFound: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
       toppingCrates: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
@@ -508,7 +517,7 @@ export class GameApp {
       return;
     }
 
-    if (this.mode === 'customize' || this.mode === 'levels') {
+    if (this.mode === 'select' || this.mode === 'customize' || this.mode === 'levels') {
       // Showroom: slow turntable spin.
       this.previewSpin += dt * 0.7;
       if (this.previewRig) {
@@ -532,7 +541,6 @@ export class GameApp {
         this.controller.update(dt, this.input, this.elapsed);
         this.physics.step(dt);
         this.score.update(dt);
-        this.ui.setTimer(this.score.timeLeft);
 
         // Pickups: burger/crown coins (topping + score), orbs (boost).
         const got = this.park.update(dt, this.controller.pos);

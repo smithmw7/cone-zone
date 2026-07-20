@@ -7,7 +7,7 @@
  *   customize  — category chip grids that write into CustomizationState
  *                (body type is just another chip row here)
  *   levels     — level select cards
- *   hud        — score / combo / timer / trick popups / touch controls
+ *   hud        — score / combo / trick popups / touch controls
  *   results    — end-of-run summary
  *
  * The 3D canvas stays visible behind the customize & level screens so the
@@ -18,11 +18,13 @@
  */
 import {
   CustomizationState,
+  BODY_TYPES,
   ACCESSORIES,
   GLASSES,
   BOARDS,
   WHEEL_COLORS,
   TRAILS,
+  type BodyType,
 } from './CustomizationState';
 import { COIN_PACKS, type CoinPack } from './Economy';
 import type { Economy } from './Economy';
@@ -45,7 +47,7 @@ import {
   spinCoin,
 } from './UIAnimations';
 
-export type ScreenName = 'start' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
+export type ScreenName = 'start' | 'select' | 'customize' | 'levels' | 'hud' | 'results' | 'pause';
 
 const LEVEL_THUMBNAILS: Record<string, string> = {
   'cone-park': 'grill-yard.webp',
@@ -59,10 +61,13 @@ const LEVEL_THUMBNAILS: Record<string, string> = {
 };
 
 export interface UICallbacks {
-  onPlay(): void;                 // start → customize
+  onPlay(): void;                 // start → player select
+  onBodyPicked(type: BodyType): void;
+  onSelectConfirm(): void;        // player select → customize
   onSkate(): void;                // customize → level select
   onLevelPicked(id: string): void; // level select → game
   onCustomize(): void;            // results → customize
+  onBackToSelect(): void;
   onReset(): void;                // respawn player
   onRetry(): void;                // results/pause → new run
   onExitToMenu(): void;           // results/hud/pause → start
@@ -208,6 +213,7 @@ export class UIManager {
   private popupLayer!: HTMLElement;
   private balanceEls: HTMLElement[] = [];
   private root: HTMLElement;
+  private selectCards = new Map<BodyType, HTMLElement>();
   private setComboMeter!: (value: number) => void;
   private setBoostMeter!: (value: number) => void;
   private setSpecialMeter!: (value: number) => void;
@@ -235,6 +241,7 @@ export class UIManager {
       { passive: true },
     );
     this.buildStart();
+    this.buildSelect();
     this.buildCustomize();
     this.buildLevels();
     this.buildHUD();
@@ -246,6 +253,66 @@ export class UIManager {
     this.root.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest?.('button')) this.cb.onUiClick();
     });
+  }
+
+  /* ---------------------------------------------------------- */
+  /* Player select                                               */
+  /* ---------------------------------------------------------- */
+
+  private buildSelect(): void {
+    const s = el('div', 'screen screen-select hidden', this.root);
+    this.screens.set('select', s);
+
+    const top = el('div', 'customize-top', s);
+    const back = el('button', 'btn btn-small icon-text-btn', top);
+    uiIcon('back', back);
+    el('span', '', back, 'BACK');
+    back.addEventListener('click', () => this.cb.onExitToMenu());
+    el('h2', 'screen-title inline', top, 'PICK YOUR PLAYER');
+
+    const panel = el('div', 'player-select-panel', s);
+    const grid = el('div', 'player-select-grid', panel);
+    for (const def of BODY_TYPES) {
+      const card = el('button', `player-select-card player-${def.id}`, grid);
+      const art = el('div', 'player-card-art', card);
+      if (def.id !== 'burger') {
+        el('span', 'mini-cone-base', art);
+        el('span', 'mini-cone-body', art);
+      }
+      const burger = el('span', 'mini-burger', art);
+      el('span', 'mini-bun mini-bun-top', burger);
+      el('span', 'mini-patty', burger);
+      el('span', 'mini-bun mini-bun-bottom', burger);
+
+      el('div', 'card-name', card, def.label);
+      el('div', 'card-blurb', card, def.blurb);
+      const bars = el('div', 'stat-bars', card);
+      const stat = (label: string, value: number) => {
+        const row = el('div', 'stat-row', bars);
+        el('span', 'stat-label', row, label);
+        const track = el('div', 'stat-track', row);
+        const fill = el('div', 'stat-fill', track);
+        fill.style.width = `${Math.round(value * 100)}%`;
+      };
+      stat('SPEED', def.display.speed);
+      stat('TURN', def.display.turning);
+      stat('BOUNCE', def.display.bounce);
+
+      card.addEventListener('click', () => {
+        this.state.set('bodyType', def.id);
+        this.highlightSelectCard(def.id);
+        this.cb.onBodyPicked(def.id);
+      });
+      this.selectCards.set(def.id, card);
+    }
+
+    const next = el('button', 'btn btn-big btn-primary player-select-next', panel, 'DRESS YOUR PLAYER');
+    next.addEventListener('click', () => this.cb.onSelectConfirm());
+    this.highlightSelectCard(this.state.bodyType);
+  }
+
+  private highlightSelectCard(id: BodyType): void {
+    for (const [key, card] of this.selectCards) card.classList.toggle('selected', key === id);
   }
 
   show(name: ScreenName): void {
@@ -315,8 +382,8 @@ export class UIManager {
     const back = el('button', 'btn btn-small icon-text-btn', top);
     uiIcon('back', back);
     el('span', '', back, 'BACK');
-    back.addEventListener('click', () => this.cb.onExitToMenu());
-    el('h2', 'screen-title inline', top, 'DRESS THE BUN');
+    back.addEventListener('click', () => this.cb.onBackToSelect());
+    el('h2', 'screen-title inline', top, 'DRESS YOUR PLAYER');
     // Balance pill doubles as the shop button — tap it to buy more coins.
     const balPill = el('button', 'coin-balance pill shop-open', top, '');
     balPill.addEventListener('click', () => this.openShop());
@@ -532,7 +599,7 @@ export class UIManager {
     const specialTrack = el('div', 'special-track', this.specialWrap);
     this.specialBar = el('div', 'special-fill', specialTrack);
 
-    this.timerEl = el('div', 'hud-timer', s, '2:00');
+    this.timerEl = el('div', 'hud-timer hidden', s);
 
     // Boost meter: blue bar top-center under the timer.
     const boostWrap = el('div', 'boost-wrap', s);
@@ -746,6 +813,7 @@ export class UIManager {
   }
 
   setTimer(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
     const m = Math.floor(seconds / 60);
     const s = Math.max(0, Math.ceil(seconds % 60));
     this.timerEl.textContent = s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`;
@@ -832,7 +900,7 @@ export class UIManager {
     const b = this.coinLine;
     const coin = this.coinCountEl.querySelector('.coin-count');
     const burger = this.coinCountEl.querySelector('.burger-count');
-    if (coin) coin.textContent = `${b.collected}/${b.total}`;
+    if (coin) coin.textContent = b.collected.toLocaleString();
     if (burger) burger.textContent = `×${b.burger}`;
   }
 

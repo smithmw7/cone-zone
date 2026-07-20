@@ -25,6 +25,16 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 
 - Optional follow-up: split the existing large Three.js bundle; Vite still reports the pre-existing >500 kB chunk warning.
 
+## 2026-07-20 Player selection restoration
+
+- New request: restore player selection with Skate Burger plus three construction cones; cone players carry the burger on top and all collected ingredients stack on that burger.
+- Restored the start → player select → looks → spots flow and added distinct Street, Highway, and Barricade cone choices.
+- Reworked character assembly so the same live BurgerStack is mounted either directly on the board or above the selected cone.
+- Production TypeScript/Vite build passes.
+- Required web-game client and mobile browser QA passed with no console errors.
+- Verified all four cards update `selectedPlayer`; a normal Highway Cone run collected two pickups and grew from stack height 1 to 3.
+- Verified a stationary Barricade Cone with cheese, lettuce, and tomato at stack height 4; screenshots are under `output/player-selection/`.
+
 ## 2026-07-10 Perimeter wall rebuild
 
 - New request: make map walls more forgiving with a tighter, lower curve into a straight concrete wall and concrete top cap; prevent wall-top bonks and corner escapes; test ordinary wall and corner movement.
@@ -95,3 +105,34 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Limited the flyout motion to a gentle 3D tilt plus a slow face rotation so the coin stays intact and readable throughout its path to the HUD.
 - Simplified the in-world collectible to match: smooth gold body, raised double-sided rim and `S` stamp, restrained metallic shading, and a softer glow.
 - Validation: production build passes; early, middle, and late flyout frames retain one stable pivot and the final browser pass completed with no console errors. Captures are under `output/simple-coin/`.
+
+## 2026-07-14 Grill Yard visual and layout upgrade
+
+- Audited the original park against its new thumbnail and documented the missing hierarchy, connected lines, useful density, edge landmark, scale cues, and material separation in `design/grill-yard-upgrade-plan.md`.
+- Added an explicit top-down build plan in `design/grill-yard-topdown.svg` with three connected routes: main launch, west street, and east bowl loops.
+- Generated and integrated authored 1024 x 1024 concrete and plywood surface maps as per-level triplanar textures; other levels retain their procedural materials.
+- Added reusable 3D modules for an A-frame, covered hero quarter, grindable picnic table, concrete planter, timber fence, suburban house backdrop, and striped patio canopy.
+- Rebuilt Grill Yard around a clear central silhouette, optional grind lanes, unobstructed landings, a concrete bowl zone, an edge-mounted burger shack patio, and layered neighborhood scenery.
+- Playtesting corrected a blocking center rail by moving grind targets into an optional lane. The main launch collected its first sequence cleanly, the west route crossed the full park and launched from its return quarter, and the bowl route traversed the crater without boundary escapes or browser errors.
+- Production and visual QA captures are under `output/grill-yard-upgrade/`.
+
+## 2026-07-14 Endless pickup placement pass
+
+- Disabled the run countdown and hid the timer HUD so gameplay continues indefinitely while score and combo systems remain active.
+- Added geometry-aware placement validation after each level finishes building, including solid boxes, rails, safe map bounds, coin spacing, and coin-to-boost spacing.
+- Expanded Grill Yard to a 40-position coin pool with 30 active coins and 9 boosts; collected coins respawn after 8 seconds at rotating alternate locations away from the player and other active pickups.
+- Changed the coin HUD to a cumulative total so respawning coins do not reduce or cap the displayed collection count.
+- Audited all eight levels in-browser: every level has zero pickup-to-geometry overlaps, coin spacing is at least 3 m, coin-to-boost spacing is at least 3.4 m, and no placement warnings or browser errors were reported.
+- Live respawn validation confirmed the active count returns from 29 to 30 at a new location while the cumulative count stays at 1; advancing the score system by 180 seconds leaves endless play active with the timer hidden.
+
+## 2026-07-16 Sunny Cove destination rebuild
+
+- Replaced Sunny Cove's shared `basicPark()` layout with one 290 x 210 m destination map combining a three-lane slopestyle headland, looping flow plaza, and two-courtyard campus web.
+- Added broad physical A-frame, spine, bank, and roller connections between all three districts, with inward-facing perimeter transitions and large open runouts.
+- Expanded the map to a 60-position coin pool with 44 active coins and 16 boost locations distributed along complete routes.
+- Corrected the global perimeter cross-section to a true floor-tangent quarter circle, widened it from 1.75 m to 3 m, and increased profile subdivisions from 16 to 28.
+- Generated project-local 1024 x 1024 coastal concrete and painted ramp textures for Sunny Cove.
+- Upgraded shared lit materials to roughness/metalness-aware standard materials, enabled ACES tone mapping, and increased directional shadow resolution to 4096.
+- Refined the opening vista with a neutral concrete summit, closer spawn, district-scale covered quarter-pipe landmarks, and an immediately readable three-line drop-in.
+- Ride testing moved the center grind rail into an optional side lane and shifted the hub spine off the main boulevard; an unsteered 12-second run now flows from the summit through multiple features into the lower park without a forced reversal.
+- Perimeter testing drove directly into the rebuilt transition at speed and returned the rider 27 m into the park without sticking or leaving the playable bounds; browser validation reported no console errors.

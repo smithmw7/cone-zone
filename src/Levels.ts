@@ -14,63 +14,75 @@ import type { LevelConfig, SkateParkScene } from './SkateParkScene';
 /* ================================================================== */
 
 function buildConePark(p: SkateParkScene): void {
-  // The curved perimeter is the boundary now — this is all interior content,
-  // kept inside the ~7m transition (|x|<58, |z|<38) and laid out in lines you
-  // can CHAIN: launch → grind → hop → land, over and over.
+  // MAIN LAUNCH: the first camera axis reads as one complete line from the
+  // spawn marker to the covered hero quarter, with forgiving space between
+  // each takeoff and landing.
+  p.moduleRoller(0, 34, 0, 12);
+  p.moduleAFrame(0, 22, 0, 1.3, 12, 5);
+  p.moduleSpine(0, 7, 0, 1.25, 14);
+  p.moduleHeroQuarter(0, -22, 0, 3.5, 18);
 
-  // Spawn (0,40) bombs north. Keep the x≈0 lane clear, then a mega DROP-IN is
-  // the flagship: ride up the back from the spawn side, plunge north across
-  // the whole park.
-  p.moduleRoller(0, 30, 0, 12);
-  p.moduleDropIn(0, 12, Math.PI, 5, 18);
+  // WEST STREET LOOP: every piece points down the same travel axis and the
+  // quarter at the end turns the rider back toward the center transfer.
+  p.moduleBank(-30, 29, 0, 1.3, 12);
+  p.moduleManualPad(-30, 20, Math.PI / 2, 10);
+  p.moduleRail(-27, 0.62, 12, -27, 0.62, 1);
+  p.moduleStairs(-25, -6, Math.PI, 1, 9);
+  p.moduleLedge(-20, -13, Math.PI / 2, 10, 0.62);
+  p.moduleQuarterPipe(-30, -28, 0, 2.6, 15);
 
-  // LEFT chain line (x=-26): kicker → rail → ledge, all aligned down z.
-  p.moduleKicker(-26, 26, 0, 1, 8);
-  p.moduleRail(-26, 0.6, 14, -26, 0.6, 0);
-  p.moduleLedge(-26, -14, 0, 10, 0.6);
+  // EAST BOWL LOOP: a broad hip leads into the bowl, then a lateral spine
+  // offers either a transfer back to center or a run to the return quarter.
+  p.modulePyramid(20, 28, 1.5);
+  p.moduleBowl(39, 7, 2.4, 0, 'concrete');
+  p.moduleSpine(20, -8, Math.PI / 2, 1.3, 12);
+  p.moduleQuarterPipe(40, -28, 0, 2.6, 15);
 
-  // RIGHT chain line (x=26): manual pad → funbox → rail.
-  p.moduleManualPad(26, 26, 0, 10);
-  p.moduleFunbox(26, 8, 0, 1, 9, 5);
-  p.moduleRail(26, 0.6, -8, 26, 0.6, -22);
+  // Foreground street details frame the main line without entering its
+  // landing corridor.
+  p.moduleLedge(-17, 30, Math.PI / 2, 10, 0.55);
+  p.moduleRail(17, 0.58, 34, 17, 0.58, 23);
 
-  // Burger Shack drive-through in the middle of the park.
-  p.moduleBurgerShack(0, -4, 0);
+  // The shack is an edge landmark now, not a center-lane obstruction.
+  p.moduleBurgerShack(-45, -23, 0);
+  p.modulePatioCanopy(-45, -9, 0, 12, 6);
+  p.modulePicnicTable(-48, -9, 0);
+  p.modulePicnicTable(-41, -9, 0);
+  p.modulePlanter(-51, 3, Math.PI / 2, 6);
+  p.modulePlanter(29, 36, 0, 6);
+  p.modulePlanter(43, 34, 0, 6);
 
-  // North landing zone off the drop-in: spine + flanking pyramids.
-  p.moduleSpine(0, -20, Math.PI / 2, 1, 14);
-  p.modulePyramid(-30, -26, 2);
-  p.modulePyramid(30, -26, 2);
-
-  // Transitions on the wings.
-  p.moduleBowl(-46, 20, 2);
-  p.moduleBowl(46, -18, 2);
-  p.moduleHalfPipe(-46, -8, 2, 16, 8);
-
-  // East plaza: stairs + hubba rail down them.
-  p.moduleStairs(46, 30, Math.PI, 1, 8);
-  p.moduleRail(46, 1.2, 24, 46, 0.4, 34);
+  // Midground neighborhood layers: dark fence, then simple houses and the
+  // existing foliage belt. These assets establish scale without collisions.
+  p.moduleFenceLine(0, -40, 0, 104);
+  p.moduleFenceLine(-58, 0, Math.PI / 2, 66);
+  p.moduleFenceLine(58, 0, Math.PI / 2, 66);
+  p.moduleSuburbanHouse(-40, -49, 0, 0xd9d0bd);
+  p.moduleSuburbanHouse(0, -51, 0, 0xc7d3d8);
+  p.moduleSuburbanHouse(40, -49, 0, 0xe1c6ad);
 
   p.placeCollectibles([
-    // spawn lane + the drop-in line (approach → deck → landing runway)
-    [0, 1.3, 24], [0, 5.9, 12], [0, 1.3, 2], [0, 1.3, -6], [0, 1.3, -16],
-    // left chain: over the kicker, along the rail, onto the ledge
-    [-26, 2.8, 20], [-26, 1.3, 10], [-26, 1.3, 2], [-26, 1.4, -14],
-    // right chain: pad, over the funbox, along the rail
-    [26, 1.3, 24], [26, 2.6, 8], [26, 1.3, -12], [26, 1.3, -20],
-    // north landing features: spine + pyramids
-    [0, 2.1, -20], [-30, 3, -26], [30, 3, -26],
-    // bowls + halfpipe (near their floors, grabbable on a lap)
-    [-46, 1.3, 20], [46, 1.3, -18], [-46, 1.3, -8], [-46, 3.1, -8],
-    // east stairs
-    [46, 2.0, 28], [46, 1.3, 34],
-    // open-floor cruisers
-    [-15, 1.2, 34], [15, 1.2, 34], [-42, 1.2, -28], [42, 1.2, 28], [0, 1.2, -32],
-    [-16, 1.2, 0], [16, 1.2, 0],
-  ]);
+    // Main launch line.
+    [0, 1.25, 34], [0, 2.3, 22], [0, 2.05, 7], [0, 1.25, -8], [0, 4.25, -20],
+    // West street loop.
+    [-30, 2.15, 29], [-30, 1.25, 23], [-30, 1.25, 12], [-30, 1.25, 3],
+    [-28, 2.0, -7], [-23, 1.35, -13], [-30, 3.25, -26],
+    // East bowl loop.
+    [20, 2.35, 28], [31, 1.25, 18], [39, 1.25, 7], [30, 1.25, -3],
+    [20, 2.1, -8], [40, 3.25, -26],
+    // Connectors and landmark route.
+    [-17, 1.2, 30], [12, 1.2, 28], [-14, 1.2, -7], [14, 1.2, -7],
+    [-45, 1.25, -19], [-42, 1.2, 18], [46, 1.2, 29],
+    // Alternate respawn pool: these stay hidden initially and rotate in as
+    // the first 30 coins are collected during an endless session.
+    [-8, 1.2, 32], [8, 1.2, 28], [-8, 1.2, 16], [8, 1.2, 13], [-8, 1.2, -2],
+    [12, 1.2, -16], [-38, 1.2, 33], [-38, 1.2, 21], [-38, 1.2, 9],
+    [-38, 1.2, -3], [-38, 1.2, -15], [20, 1.2, 36], [50, 1.2, -14],
+    [31, 1.2, -16], [-52, 1.2, 12],
+  ], 30);
   p.placeBoostOrbs([
-    [0, 1, 34], [0, 1, -24], [-26, 1, 20], [26, 1, 20], [-46, 1, -8],
-    [46, 1, -18], [-46, 1, 20], [-30, 1, -26], [30, 1, -26], [0, 1, -2],
+    [0, 1, 38], [0, 1, 14], [0, 1, -12], [-24, 1, 26], [-30, 1, -18],
+    [20, 1, 22], [29, 1, -8], [40, 1, -18], [-55, 1, -25],
   ]);
 }
 
@@ -265,12 +277,112 @@ function basicPark(p: SkateParkScene, X: number, Z: number): void {
   ]);
 }
 
-/* 4. SUNNY COVE — beach: palms, sand, an ocean lapping the park. */
+/* 4. SUNNY COVE — one large connected destination park. */
 function buildSunnyCove(p: SkateParkScene): void {
-  basicPark(p, 76, 54);
-  // Beachy extras: an extra bowl + a spine reef.
-  p.moduleBowl(20, 30, 2);
-  p.moduleSpine(-24, 34, 0, 1, 12);
+  // C. SLOPESTYLE HEADLAND: three readable lines descend from one broad
+  // overlook. Every lane has a clean miss route and feeds the central hub.
+  p.moduleBox(0, 82, 0, 108, 6, 20, 0, 0xb9ada0);
+  p.moduleBank(-36, 72, Math.PI, 6, 24);
+  p.moduleBank(0, 72, Math.PI, 6, 24);
+  p.moduleBank(36, 72, Math.PI, 6, 24);
+
+  // Easy surf line.
+  p.moduleRoller(-36, 54, 0, 15);
+  p.moduleFunbox(-36, 39, 0, 0.8, 14, 5);
+  p.moduleRoller(-36, 23, 0, 14);
+
+  // Medium rail line.
+  p.moduleKicker(0, 53, 0, 1.2, 15);
+  p.moduleRail(6, 0.68, 44, 6, 0.68, 31);
+  p.moduleAFrame(0, 18, 0, 1.25, 15, 5);
+
+  // Advanced transfer line, with generous open runouts on both sides.
+  p.moduleKicker(36, 53, 0, 1.8, 16);
+  p.moduleSpine(36, 34, 0, 1.5, 15);
+  p.moduleStairs(36, 14, Math.PI, 1.4, 12);
+
+  // Wide cross-map transfer: a low spine and flanking rollers visibly hand
+  // the downhill lines into either of the two arena districts.
+  p.moduleRoller(-38, 4, Math.PI / 2, 18);
+  p.moduleSpine(18, 4, 0, 1.15, 18);
+  p.moduleRoller(38, 4, Math.PI / 2, 18);
+
+  // A. LOOPING FLOW PLAZA (west): inward-facing transitions form a large
+  // recovery circuit around a central street island and tangent bowl.
+  p.moduleQuarterPipe(-121, -34, Math.PI / 2, 3, 24);
+  p.moduleQuarterPipe(-16, -34, -Math.PI / 2, 3, 24);
+  p.moduleHeroQuarter(-68, -79, 0, 4.2, 30);
+  p.moduleQuarterPipe(-68, 2, Math.PI, 3, 28);
+  p.moduleBowl(-101, -61, 2.6, 0, 'concrete');
+
+  p.moduleAFrame(-68, -34, 0, 1.35, 17, 6);
+  p.moduleManualPad(-91, -27, Math.PI / 2, 13);
+  p.moduleRail(-88, 0.62, -47, -88, 0.62, -35);
+  p.moduleLedge(-47, -53, Math.PI / 2, 13, 0.62);
+  p.moduleSpine(-42, -20, Math.PI / 2, 1.2, 15);
+  p.modulePyramid(-104, -13, 1.25);
+
+  // B. CAMPUS TRICK WEB (east): two courtyards, a central transfer, and
+  // perimeter returns. Features align with the east-west boulevard so the
+  // player can loop either court or cross between them at several points.
+  p.moduleQuarterPipe(18, -36, Math.PI / 2, 3, 24);
+  p.moduleQuarterPipe(124, -36, -Math.PI / 2, 3, 24);
+  p.moduleQuarterPipe(48, -79, 0, 2.7, 22);
+  p.moduleHeroQuarter(96, 2, Math.PI, 4, 26);
+
+  p.moduleFunbox(43, -36, Math.PI / 2, 1.1, 14, 6);
+  p.moduleRail(38, 0.62, -55, 38, 0.62, -42);
+  p.moduleManualPad(43, -17, 0, 12);
+  p.moduleFunbox(99, -36, Math.PI / 2, 1.1, 14, 6);
+  p.moduleRail(104, 0.62, -30, 104, 0.62, -17);
+  p.moduleLedge(99, -57, 0, 12, 0.62);
+
+  // Physical ramp links between the three districts. These are broad enough
+  // to be ordinary routes, with the rails remaining optional side targets.
+  p.moduleAFrame(-8, -35, Math.PI / 2, 1.25, 18, 7);
+  p.moduleSpine(70, -36, 0, 1.35, 18);
+  p.moduleBank(70, -7, Math.PI, 1.2, 20);
+  p.moduleBank(-10, -7, Math.PI, 1.2, 18);
+
+  // Coastal landmarks stay beyond the riding corridors and provide strong
+  // navigation silhouettes from every district.
+  p.modulePatioCanopy(-116, 73, 0, 18, 9);
+  p.modulePicnicTable(-121, 73, 0);
+  p.modulePicnicTable(-111, 73, 0);
+  p.moduleBurgerShack(119, 72, Math.PI);
+  p.modulePlanter(-126, 18, Math.PI / 2, 8);
+  p.modulePlanter(128, 12, Math.PI / 2, 8);
+  p.modulePlanter(128, -71, Math.PI / 2, 8);
+
+  p.placeCollectibles([
+    // Slopestyle lines and their alternate bypasses.
+    [-36, 7.2, 68], [-36, 1.3, 58], [-36, 1.7, 39], [-36, 1.3, 28],
+    [0, 7.2, 68], [0, 2.2, 53], [0, 1.35, 37], [0, 2.1, 18],
+    [36, 7.2, 68], [36, 2.8, 53], [36, 2.4, 34], [36, 2.3, 14],
+    [-18, 1.2, 55], [18, 1.2, 55], [-18, 1.2, 26], [18, 1.2, 26],
+    // West flow circuit and street island.
+    [-112, 1.2, -20], [-112, 1.2, -49], [-93, 1.2, -72], [-65, 1.2, -70],
+    [-35, 1.2, -65], [-24, 1.2, -39], [-27, 1.2, -12], [-57, 1.2, -5],
+    [-87, 1.2, -7], [-105, 1.2, -27], [-68, 2.2, -34], [-91, 1.2, -27],
+    [-88, 1.25, -41], [-47, 1.35, -53], [-42, 2.0, -20], [-101, 1.2, -61],
+    // East campus web.
+    [27, 1.2, -19], [27, 1.2, -53], [48, 1.2, -69], [70, 1.2, -71],
+    [94, 1.2, -69], [115, 1.2, -52], [115, 1.2, -20], [94, 1.2, -7],
+    [68, 1.2, -10], [43, 2.0, -36], [43, 1.2, -17], [38, 1.25, -48],
+    [99, 2.0, -36], [104, 1.25, -23], [99, 1.35, -57], [70, 2.2, -36],
+    // Cross-map connectors and alternate endless respawn points.
+    [-12, 1.2, -18], [8, 1.2, -18], [-8, 2.1, -35], [14, 1.2, -52],
+    [-51, 1.2, 13], [-75, 1.2, 13], [55, 1.2, 11], [83, 1.2, 11],
+    [-128, 1.2, -5], [130, 1.2, -8], [-129, 1.2, -55], [130, 1.2, -56],
+  ], 44);
+
+  p.placeBoostOrbs([
+    [-36, 6.9, 78], [0, 6.9, 78], [36, 6.9, 78],
+    [-36, 1, 11], [0, 1, 7], [36, 1, 11],
+    [-110, 1, -35], [-68, 1, -68], [-30, 1, -35], [-68, 1, -8],
+    [28, 1, -36], [70, 1, -67], [112, 1, -36], [70, 1, -9],
+    [-8, 1, -55], [14, 1, -15],
+  ]);
 }
 
 /* 5. CANOPY RUN — jungle rainforest: dense canopy, a lagoon. */
@@ -319,9 +431,18 @@ export const LEVELS: LevelConfig[] = [
     bounds: { x: 67.5, z: 47.5 },
     spawn: { x: 0, z: 40, yaw: Math.PI },
     theme: {
-      // Cool grey concrete floor vs warm plywood ramps — clear contrast.
-      ground: 0xbdbfc4, groundDark: 0x9a9ca4, ramp: 0xcb9f61, rampAlt: 0xb98a49,
+      // Authored cool concrete and honey plywood make each module family read
+      // at a glance while yellow steel ties the three routes together.
+      ground: 0xe3e5e8, groundDark: 0xb9bdc3, ramp: 0xffefd0, rampAlt: 0xffdca0,
       surround: 0x6cbf5a, rail: 0xf0c93d, treeCrown: 0x4fae52, treeTrunk: 0x7a5230,
+      treeCrown2: 0x397f43,
+      skyPresets: ['Noon'],
+      surfaceMaps: {
+        concrete: 'textures/grill-yard/concrete.webp',
+        wood: 'textures/grill-yard/plywood.webp',
+        concreteScale: 0.13,
+        woodScale: 0.18,
+      },
     },
     build: buildConePark,
   },
@@ -358,15 +479,21 @@ export const LEVELS: LevelConfig[] = [
   {
     id: 'sunny-cove',
     name: 'Sunny Cove',
-    blurb: 'Beach break. Palms, warm sand and an ocean lapping the coping.',
-    bounds: { x: 76, z: 54 },
-    spawn: { x: 0, z: 46, yaw: Math.PI },
+    blurb: 'A huge coastal destination linking slopestyle, flow park and campus lines.',
+    bounds: { x: 145, z: 105 },
+    spawn: { x: 0, y: 6.5, z: 78, yaw: Math.PI },
     theme: {
-      ground: 0xe8d9a8, groundDark: 0xcdb87e, ramp: 0xd8a25a, rampAlt: 0xc48c44,
-      surround: 0xf0e2b0, rail: 0xff9a3c, treeCrown: 0x4fb36a, treeCrown2: 0x6fce86, treeTrunk: 0x9a6a3a,
+      ground: 0xddd5c7, groundDark: 0xb9ada0, ramp: 0x32aab7, rampAlt: 0xe8674f,
+      surround: 0xf2cf78, rail: 0xff7657, treeCrown: 0x3ba65d, treeCrown2: 0x78cb52, treeTrunk: 0x9a6a3a,
       foliage: 'palm',
-      water: { shallow: 0x37cbe0, deep: 0x1a7fb0, level: -0.55, surround: 24 },
-      skyPresets: ['Noon', 'Sunset', 'Dawn'],
+      water: { shallow: 0x35d5dc, deep: 0x087ca7, level: -0.55, surround: 38 },
+      skyPresets: ['Noon'],
+      surfaceMaps: {
+        concrete: 'textures/sunny-cove/coastal-concrete.webp',
+        wood: 'textures/sunny-cove/painted-ramp.webp',
+        concreteScale: 0.16,
+        woodScale: 0.2,
+      },
     },
     build: buildSunnyCove,
   },

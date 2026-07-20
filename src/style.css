@@ -2028,3 +2028,253 @@ input {
   .best-score { margin-top: 65px; }
   .home-primary { min-height: 58px; margin-top: 14px; font-size: 25px; }
 }
+
+/* Player select ---------------------------------------------------------- */
+
+.screen-select {
+  justify-content: flex-start;
+  background: linear-gradient(180deg, rgba(65, 180, 230, .14) 0 43%, rgba(246, 237, 211, .96) 72%);
+}
+
+.player-select-panel {
+  position: absolute;
+  inset: 78px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 13px;
+  padding: 0 0 max(18px, env(safe-area-inset-bottom));
+}
+
+.player-select-grid {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  gap: 13px;
+  padding: 9px 24px 13px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.player-select-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.player-select-card {
+  flex: 0 0 210px;
+  min-height: 306px;
+  padding: 12px;
+  border: 3px solid var(--sb-char);
+  border-radius: 15px;
+  color: var(--sb-char);
+  background: var(--sb-mayo);
+  box-shadow: 0 6px 0 var(--sb-char);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: center;
+}
+
+.player-select-card.selected {
+  border-color: var(--sb-tomato);
+  background: var(--sb-cheese);
+  box-shadow: 0 6px 0 var(--sb-tomato);
+  transform: translateY(-5px);
+}
+
+.player-card-art {
+  position: relative;
+  height: 108px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 2px solid var(--sb-char);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, var(--sb-sky) 0 72%, #82bd59 72% 100%);
+}
+
+.mini-burger,
+.mini-bun,
+.mini-patty,
+.mini-cone-base,
+.mini-cone-body {
+  position: absolute;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%);
+}
+
+.mini-burger {
+  bottom: 15px;
+  width: 62px;
+  height: 38px;
+}
+
+.player-select-card:not(.player-burger) .mini-burger {
+  bottom: 56px;
+  transform: translateX(-50%) scale(.72);
+  transform-origin: bottom center;
+}
+
+.player-cone-tall .mini-burger {
+  bottom: 72px;
+}
+
+.player-cone-wide .mini-burger {
+  bottom: 50px;
+}
+
+.mini-bun {
+  width: 62px;
+  height: 13px;
+  background: #df9a45;
+  border: 2px solid var(--sb-char);
+}
+
+.mini-bun-top {
+  top: 0;
+  height: 16px;
+  border-radius: 32px 32px 5px 5px;
+}
+
+.mini-patty {
+  top: 16px;
+  width: 66px;
+  height: 9px;
+  border: 2px solid var(--sb-char);
+  border-radius: 7px;
+  background: #754026;
+}
+
+.mini-bun-bottom {
+  top: 25px;
+  border-radius: 4px 4px 10px 10px;
+}
+
+.mini-cone-base {
+  bottom: 13px;
+  width: 78px;
+  height: 10px;
+  border: 2px solid var(--sb-char);
+  border-radius: 3px;
+  background: #e45e21;
+}
+
+.mini-cone-body {
+  bottom: 20px;
+  width: 0;
+  height: 0;
+  border-right: 31px solid transparent;
+  border-bottom: 55px solid #f87823;
+  border-left: 31px solid transparent;
+  filter: drop-shadow(2px 0 0 var(--sb-char)) drop-shadow(-2px 0 0 var(--sb-char));
+}
+
+.player-cone-tall .mini-cone-base {
+  width: 68px;
+  background: #dfa915;
+}
+
+.player-cone-tall .mini-cone-body {
+  border-right-width: 25px;
+  border-bottom: 72px solid #ffc928;
+  border-left-width: 25px;
+}
+
+.player-cone-wide .mini-cone-base {
+  width: 94px;
+  background: #2468b4;
+}
+
+.player-cone-wide .mini-cone-body {
+  border-right-width: 38px;
+  border-bottom: 47px solid #3188e8;
+  border-left-width: 38px;
+}
+
+.player-select-card .card-name {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 400;
+}
+
+.player-select-card .card-blurb {
+  min-height: 46px;
+  margin-bottom: 8px;
+  color: var(--sb-toast);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.player-select-card .stat-row {
+  margin-top: 5px;
+}
+
+.player-select-card .stat-label {
+  width: 48px;
+  color: var(--sb-toast);
+  font-size: 9px;
+}
+
+.player-select-card .stat-track {
+  height: 7px;
+  border: 1px solid var(--sb-char);
+  background: rgba(40, 34, 31, .13);
+}
+
+.player-select-card .stat-fill {
+  background: var(--sb-tomato);
+}
+
+.player-select-next {
+  width: min(86vw, 360px);
+  min-height: 56px;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 760px) {
+  .player-select-panel {
+    justify-content: center;
+    left: 42%;
+    padding-right: 22px;
+  }
+
+  .player-select-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(190px, 245px));
+    justify-content: center;
+    padding-inline: 12px;
+    overflow: visible;
+  }
+
+  .player-select-card {
+    width: auto;
+    min-height: 236px;
+  }
+
+  .player-card-art {
+    height: 82px;
+  }
+
+  .player-select-card .card-blurb {
+    min-height: 30px;
+  }
+}
+
+@media (max-height: 720px) {
+  .player-select-card {
+    min-height: 270px;
+  }
+
+  .player-card-art {
+    height: 82px;
+  }
+
+  .player-select-card .card-blurb {
+    min-height: 32px;
+  }
+}
