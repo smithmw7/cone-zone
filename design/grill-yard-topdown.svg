@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">Grill Yard upgraded top-down plan</title>
+  <desc id="desc">Three connected skate lines arranged around an A-frame, hero quarter pipe, street plaza, bowl loop, and edge burger shack.</desc>
+  <defs>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #28221f; }
+      .label { font-size: 18px; font-weight: 700; }
+      .small { font-size: 14px; font-weight: 700; }
+      .module { stroke: #28221f; stroke-width: 4; }
+      .line { fill: none; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; opacity: .78; }
+    </style>
+    <marker id="arrow-a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#d93a2f"/></marker>
+    <marker id="arrow-b" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#2878b8"/></marker>
+    <marker id="arrow-c" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#4d9a48"/></marker>
+  </defs>
+  <rect width="1200" height="820" fill="#f7f1df"/>
+  <text x="60" y="52" font-size="30" font-weight="800">GRILL YARD / TOP-DOWN BUILD PLAN</text>
+  <rect x="90" y="90" width="1020" height="650" rx="95" fill="#c9cbd0" stroke="#4f565d" stroke-width="12"/>
+  <path d="M102 175H1098M102 655H1098" stroke="#504235" stroke-width="14" stroke-dasharray="24 8" opacity=".78"/>
+
+  <path class="line" d="M600 706 C600 620 600 555 600 485 C600 405 600 335 600 195" stroke="#d93a2f" marker-end="url(#arrow-a)"/>
+  <path class="line" d="M355 655 C310 570 315 470 330 385 C340 300 405 220 520 205" stroke="#2878b8" marker-end="url(#arrow-b)"/>
+  <path class="line" d="M720 545 C850 610 990 510 930 365 C885 255 765 245 680 340 C640 390 650 445 720 475" stroke="#4d9a48" marker-end="url(#arrow-c)"/>
+
+  <rect class="module" x="560" y="650" width="80" height="56" rx="8" fill="#8fc7e8"/><text class="small" x="576" y="684">SPAWN</text>
+  <rect class="module" x="555" y="570" width="90" height="35" rx="14" fill="#d5a15d"/><text class="small" x="566" y="593">ROLLER</text>
+  <path class="module" d="M520 455 600 395 680 455 650 500H550Z" fill="#d5a15d"/><text class="label" x="555" y="454">A-FRAME</text>
+  <rect class="module" x="550" y="300" width="100" height="45" fill="#d5a15d"/><text class="small" x="558" y="328">TRANSFER</text>
+  <path class="module" d="M505 135H695V250Q600 190 505 250Z" fill="#bd8747"/><text class="label" x="524" y="168">HERO QUARTER</text>
+  <path d="M520 126H680L655 95H545Z" fill="#d93a2f" stroke="#28221f" stroke-width="4"/><text class="small" x="557" y="117">CANOPY</text>
+
+  <path class="module" d="M245 600H400L370 550H275Z" fill="#d5a15d"/><text class="small" x="286" y="586">ENTRY BANK</text>
+  <rect class="module" x="270" y="465" width="130" height="48" fill="#9da0a7"/><text class="small" x="291" y="495">MANUAL PAD</text>
+  <line x1="330" y1="440" x2="330" y2="350" stroke="#f0c93d" stroke-width="12"/><text class="small" x="345" y="402">FLAT RAIL</text>
+  <path class="module" d="M260 285H400L380 345H280Z" fill="#9da0a7"/><line x1="330" y1="290" x2="330" y2="342" stroke="#f0c93d" stroke-width="8"/><text class="small" x="267" y="275">STAIR PLAZA</text>
+  <path class="module" d="M250 145H410V230Q330 185 250 230Z" fill="#bd8747"/><text class="small" x="274" y="175">RETURN QUARTER</text>
+
+  <path class="module" d="M720 520 770 465 820 520 800 555H740Z" fill="#d5a15d"/><text class="small" x="735" y="525">HIP</text>
+  <circle class="module" cx="900" cy="435" r="105" fill="#a8abb2"/><circle cx="900" cy="435" r="72" fill="#858991" stroke="#28221f" stroke-width="4"/><text class="label" x="862" y="442">BOWL</text>
+  <path class="module" d="M765 270Q810 225 855 270Q810 315 765 270Z" fill="#d5a15d"/><text class="small" x="780" y="275">SPINE</text>
+  <path class="module" d="M875 145H1035V230Q955 185 875 230Z" fill="#bd8747"/><text class="small" x="900" y="175">EAST QUARTER</text>
+
+  <rect class="module" x="120" y="120" width="170" height="125" fill="#f4efe2"/><path d="M112 145H298" stroke="#d93a2f" stroke-width="24" stroke-dasharray="24 18"/><circle cx="205" cy="112" r="34" fill="#e0a04e" stroke="#28221f" stroke-width="4"/><text class="label" x="140" y="205">BURGER SHACK</text>
+  <rect class="module" x="120" y="260" width="170" height="70" fill="#f0d69d"/><text class="small" x="147" y="300">PATIO + TABLES</text>
+
+  <rect x="735" y="665" width="340" height="42" rx="12" fill="#6f8046" stroke="#28221f" stroke-width="4"/><text class="small" x="795" y="692">PLANTERS / SPECTATOR EDGE</text>
+  <text class="label" x="840" y="785" fill="#d93a2f">A MAIN LAUNCH</text>
+  <text class="label" x="510" y="785" fill="#2878b8">B STREET LOOP</text>
+  <text class="label" x="180" y="785" fill="#4d9a48">C BOWL LOOP</text>
+</svg>

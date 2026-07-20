@@ -191,3 +191,9 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Straight-wall stress test at 12 m/s climbed to y=5.88, remained 0.078 m inside the wall path at its closest point, and returned to x=26.90 inside the park.
 - Rounded-corner stress test at 12 m/s climbed to y=5.90, remained 0.101 m inside the corner arc, and returned to the interior. Both tests kept all four burger layers, emitted zero bonk events, and reported no browser errors.
 - Production build and required web-game client pass. Numeric results and the inspected wall-riding capture are under `output/perimeter-containment/`.
+
+## 2026-07-20 Source and domain publishing sync
+
+- Publishing pass includes the previously local Capacitor iOS project/configuration and five authored level-design documents so meaningful project work is no longer stranded outside Git.
+- Added generated browser QA captures under `output/` to `.gitignore`; these remain local evidence rather than source artifacts.
+- Rebuilt the latest game for the relative `/skateburger` deployment path; Git and live-domain verification follows this entry.

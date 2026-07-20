@@ -7,9 +7,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios",
+    "ios:run": "npm run ios:sync && cap run ios",
+    "ios:run:iphone": "npm run ios:sync && cap run ios --target 00008130-001975582EE0001C"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@dimforge/rapier3d-compat": "^0.14.0",
     "@fontsource/barlow-condensed": "^5.2.7",
     "@fontsource/lilita-one": "^5.2.6",
@@ -17,6 +23,7 @@
     "three": "^0.169.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@types/three": "^0.169.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.8"

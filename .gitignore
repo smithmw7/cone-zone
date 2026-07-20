@@ -2,5 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.local
+ios/DerivedData/
+output/
 Marketing/
 .claude/

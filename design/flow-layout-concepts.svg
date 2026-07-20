@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <defs>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #17202a; letter-spacing: 0; }
+      .title { font-size: 26px; font-weight: 700; }
+      .label { font-size: 15px; font-weight: 700; }
+      .small { font-size: 12px; }
+      .panel { fill: #f5f6f7; stroke: #263238; stroke-width: 3; }
+      .floor { fill: #d9dde0; stroke: #707b82; stroke-width: 2; }
+      .feature { fill: #e4a853; stroke: #6c471c; stroke-width: 2; }
+      .transition { fill: #70a783; stroke: #285b3b; stroke-width: 2; }
+      .rail { fill: none; stroke: #d2a800; stroke-width: 6; stroke-linecap: round; }
+      .main { fill: none; stroke: #1f9d73; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+      .tech { fill: none; stroke: #168aad; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+      .advanced { fill: none; stroke: #e09f16; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 14 9; }
+      .bypass { fill: none; stroke: #ffffff; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 8 7; }
+      .wall { fill: none; stroke: #39434a; stroke-width: 16; }
+      .safe { fill: none; stroke: #aeb8be; stroke-width: 18; }
+      .landing { fill: #92d5b5; opacity: 0.5; stroke: #25815d; stroke-width: 1; stroke-dasharray: 5 4; }
+      .node { fill: #ffffff; stroke: #263238; stroke-width: 2; }
+    </style>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f9d73"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#168aad"/>
+    </marker>
+    <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#e09f16"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="900" fill="#e9edef"/>
+  <text x="40" y="48" class="title">Skate Burger Flow Layout Concepts</text>
+  <path d="M870 34 H930" class="main"/><text x="940" y="40" class="small">safe main flow</text>
+  <path d="M1060 34 H1120" class="tech"/><text x="1130" y="40" class="small">technical connector</text>
+  <path d="M1250 34 H1310" class="advanced"/><text x="1320" y="40" class="small">advanced line</text>
+
+  <!-- Panel A -->
+  <g transform="translate(35 80)">
+    <rect width="650" height="360" rx="8" class="panel"/>
+    <text x="22" y="34" class="title">A. Looping Flow Plaza</text>
+    <text x="22" y="56" class="small">Recommended first rebuild: Sunny Cove</text>
+    <rect x="35" y="75" width="580" height="250" rx="70" class="floor"/>
+    <rect x="48" y="88" width="554" height="224" rx="58" class="safe"/>
+    <rect x="62" y="102" width="526" height="196" rx="48" class="wall"/>
+
+    <path d="M110 200 C110 125 205 112 325 112 C455 112 540 135 540 200 C540 270 445 288 325 288 C200 288 110 270 110 200" class="main" marker-end="url(#arrowGreen)"/>
+    <path d="M190 200 C210 150 275 142 325 165 C375 142 440 150 460 200 C440 250 375 258 325 235 C275 258 210 250 190 200" class="tech" marker-end="url(#arrowBlue)"/>
+    <path d="M155 245 C225 205 270 195 325 200 C385 205 430 195 500 150" class="advanced" marker-end="url(#arrowGold)"/>
+
+    <path d="M105 165 Q80 200 105 235" class="transition"/>
+    <path d="M545 165 Q570 200 545 235" class="transition"/>
+    <path d="M270 112 Q325 85 380 112" class="transition"/>
+    <path d="M270 288 Q325 315 380 288" class="transition"/>
+
+    <rect x="265" y="178" width="120" height="44" rx="4" class="feature"/>
+    <path d="M280 200 H370" class="rail"/>
+    <rect x="190" y="154" width="58" height="30" class="feature"/>
+    <rect x="402" y="216" width="58" height="30" class="feature"/>
+    <circle cx="490" cy="230" r="42" class="transition"/>
+    <circle cx="490" cy="230" r="23" fill="#b7c4c9" stroke="#285b3b" stroke-width="2"/>
+
+    <text x="80" y="198" class="small">return bank</text>
+    <text x="268" y="173" class="small">street island</text>
+    <text x="468" y="285" class="small">tangent bowl</text>
+    <text x="90" y="344" class="small">Hard wall stays behind a clear recovery circuit. Four connectors cross the center without entering landings.</text>
+  </g>
+
+  <!-- Panel B -->
+  <g transform="translate(715 80)">
+    <rect width="650" height="360" rx="8" class="panel"/>
+    <text x="22" y="34" class="title">B. Three-Lane Slopestyle Mountain</text>
+    <text x="22" y="56" class="small">Replacement direction: Powder Peak</text>
+    <path d="M65 82 L585 82 L610 325 L40 325 Z" class="floor"/>
+
+    <rect x="75" y="92" width="500" height="36" rx="18" class="node"/>
+    <text x="277" y="115" class="label">START TERRACE</text>
+
+    <path d="M155 130 C135 170 150 205 130 245 C115 275 130 300 150 315" class="main" marker-end="url(#arrowGreen)"/>
+    <path d="M325 130 C305 170 340 205 315 245 C295 275 315 300 325 315" class="tech" marker-end="url(#arrowBlue)"/>
+    <path d="M495 130 C475 170 520 205 485 245 C465 275 490 300 500 315" class="advanced" marker-end="url(#arrowGold)"/>
+
+    <rect x="112" y="155" width="75" height="24" class="feature"/>
+    <rect x="287" y="155" width="78" height="24" class="feature"/>
+    <rect x="455" y="151" width="86" height="28" class="feature"/>
+    <rect x="102" y="222" width="90" height="28" class="feature"/>
+    <rect x="282" y="219" width="90" height="31" class="feature"/>
+    <rect x="446" y="213" width="98" height="37" class="feature"/>
+
+    <rect x="112" y="179" width="75" height="27" class="landing"/>
+    <rect x="287" y="179" width="78" height="27" class="landing"/>
+    <rect x="455" y="179" width="86" height="27" class="landing"/>
+    <rect x="102" y="250" width="90" height="30" class="landing"/>
+    <rect x="282" y="250" width="90" height="30" class="landing"/>
+    <rect x="446" y="250" width="98" height="30" class="landing"/>
+
+    <path d="M93 165 C70 185 72 225 98 238" class="bypass"/>
+    <path d="M270 165 C245 185 250 225 275 238" class="bypass"/>
+    <path d="M555 165 C580 185 575 225 550 238" class="bypass"/>
+
+    <rect x="75" y="292" width="500" height="28" rx="14" class="transition"/>
+    <text x="250" y="311" class="label">SNAKE-RUN RETURN</text>
+    <text x="83" y="143" class="small">easy</text>
+    <text x="285" y="143" class="small">medium</text>
+    <text x="465" y="143" class="small">advanced</text>
+    <text x="78" y="344" class="small">Every feature has a bypass. Crossovers occur only on broad setup terraces, never through a landing.</text>
+  </g>
+
+  <!-- Panel C -->
+  <g transform="translate(35 470)">
+    <rect width="1330" height="390" rx="8" class="panel"/>
+    <text x="22" y="36" class="title">C. Campus Trick Web</text>
+    <text x="22" y="58" class="small">Replacement direction: Canopy Run or Aqueduct City</text>
+    <rect x="35" y="80" width="1260" height="270" rx="42" class="floor"/>
+    <rect x="55" y="100" width="1220" height="230" rx="34" class="safe"/>
+    <rect x="75" y="120" width="1180" height="190" rx="28" class="wall"/>
+
+    <ellipse cx="390" cy="215" rx="205" ry="78" class="main"/>
+    <ellipse cx="940" cy="215" rx="205" ry="78" class="main"/>
+    <path d="M570 180 C650 120 680 120 760 180 C835 235 835 250 760 280 C680 315 650 315 570 250" class="tech" marker-end="url(#arrowBlue)"/>
+    <path d="M400 215 C540 145 790 145 930 215 C790 285 540 285 400 215" class="advanced" marker-end="url(#arrowGold)"/>
+
+    <rect x="300" y="180" width="180" height="70" rx="5" class="feature"/>
+    <path d="M325 205 H455 M325 225 H455" class="rail"/>
+    <rect x="850" y="180" width="180" height="70" rx="5" class="feature"/>
+    <path d="M875 205 H1005 M875 225 H1005" class="rail"/>
+
+    <circle cx="665" cy="215" r="58" class="node"/>
+    <text x="617" y="211" class="label">LANDMARK</text>
+    <text x="625" y="231" class="small">non-playable</text>
+
+    <path d="M175 175 Q130 215 175 255" class="transition"/>
+    <path d="M1155 175 Q1200 215 1155 255" class="transition"/>
+    <path d="M330 137 Q390 105 450 137" class="transition"/>
+    <path d="M880 293 Q940 325 1000 293" class="transition"/>
+
+    <rect x="535" y="125" width="80" height="30" class="feature"/>
+    <rect x="715" y="275" width="80" height="30" class="feature"/>
+    <path d="M555 140 H595 M735 290 H775" class="rail"/>
+
+    <text x="292" y="175" class="small">west courtyard</text>
+    <text x="845" y="175" class="small">east courtyard</text>
+    <text x="90" y="374" class="small">Two dense trick nodes are connected by a figure-eight boulevard, four direct spokes, and an advanced roof/transfer line.</text>
+  </g>
+</svg>
