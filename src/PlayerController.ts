@@ -72,6 +72,8 @@ const MAX_FALL_SPEED = 30;   // terminal velocity — also prevents tunneling
 const BONK_NORMAL_Y_GROUND = 0.42;
 const BONK_NORMAL_Y_AIR = 0.25;
 const BONK_SKIN = 0.45;      // how far the board nose reaches ahead
+const PERIMETER_RETURN = 0.82; // lively redirect without killing angled wall speed
+const PERIMETER_MIN_SPEED = 4;
 
 export class PlayerController {
   pos = new THREE.Vector3();
@@ -646,8 +648,27 @@ export class PlayerController {
       const depth = BONK_SKIN - hit.dist;
       if (depth > 0) this.pos.addScaledVector(n, depth);
 
-      // Reflect + damp: bounce off and lose most of the speed.
       const vDotN = this.vel.x * n.x + this.vel.z * n.z;
+
+      if (perimeterImpact) {
+        // The retaining wall is the continuation of the rideable transition,
+        // not an obstacle. Preserve the along-wall component at an angle and
+        // redirect only the outward component back into the park. Damping the
+        // whole vector here caused repeated contacts to stop riders halfway
+        // up the wall; the inward redirect clears the face immediately while
+        // the rounded safety boundary remains the absolute no-escape guard.
+        if (vDotN < 0) {
+          this.vel.x -= (1 + PERIMETER_RETURN) * vDotN * n.x;
+          this.vel.z -= (1 + PERIMETER_RETURN) * vDotN * n.z;
+        }
+        const redirectedSpeed = Math.hypot(this.vel.x, this.vel.z);
+        this.speed = Math.max(PERIMETER_MIN_SPEED, redirectedSpeed);
+        this.yaw = Math.atan2(this.vel.x, this.vel.z);
+        this.squashVel = -2;
+        break;
+      }
+
+      // True obstacles reflect and remove most of the rider's speed.
       this.vel.x = (this.vel.x - 2 * vDotN * n.x) * 0.35;
       this.vel.z = (this.vel.z - 2 * vDotN * n.z) * 0.35;
       this.speed *= 0.3;
@@ -657,7 +678,7 @@ export class PlayerController {
       if (nhs > 0.8) this.yaw = Math.atan2(this.vel.x, this.vel.z);
 
       this.squashVel = -4; // impact squash
-      if (!perimeterImpact && this.bonkEventCooldown <= 0) {
+      if (this.bonkEventCooldown <= 0) {
         this.bonkEventCooldown = 0.6;
         this.events.onBonk();
       }

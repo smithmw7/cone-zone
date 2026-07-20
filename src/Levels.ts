@@ -52,15 +52,6 @@ function buildConePark(p: SkateParkScene): void {
   p.modulePlanter(29, 36, 0, 6);
   p.modulePlanter(43, 34, 0, 6);
 
-  // Midground neighborhood layers: dark fence, then simple houses and the
-  // existing foliage belt. These assets establish scale without collisions.
-  p.moduleFenceLine(0, -40, 0, 104);
-  p.moduleFenceLine(-58, 0, Math.PI / 2, 66);
-  p.moduleFenceLine(58, 0, Math.PI / 2, 66);
-  p.moduleSuburbanHouse(-40, -49, 0, 0xd9d0bd);
-  p.moduleSuburbanHouse(0, -51, 0, 0xc7d3d8);
-  p.moduleSuburbanHouse(40, -49, 0, 0xe1c6ad);
-
   p.placeCollectibles([
     // Main launch line.
     [0, 1.25, 34], [0, 2.3, 22], [0, 2.05, 7], [0, 1.25, -8], [0, 4.25, -20],

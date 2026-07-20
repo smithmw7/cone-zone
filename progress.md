@@ -197,3 +197,12 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Publishing pass includes the previously local Capacitor iOS project/configuration and five authored level-design documents so meaningful project work is no longer stranded outside Git.
 - Added generated browser QA captures under `output/` to `.gitignore`; these remain local evidence rather than source artifacts.
 - Rebuilt the latest game for the relative `/skateburger` deployment path; Git and live-domain verification follows this entry.
+
+## 2026-07-20 Angled perimeter wall and Level 1 scenery cleanup
+
+- New request: stop riders from sticking halfway up an outer wall on angled approaches, keep them inside the park, and remove Level 1's wooden fences and wall-overlapping houses.
+- Root cause: the upper perimeter response multiplied the rider's entire horizontal velocity by 0.35 on contact, destroying the along-wall component and causing repeated angled contacts to grind the rider to a halt.
+- Perimeter hits now preserve tangential momentum and redirect only the outward component into the park. True interior obstacles retain the existing heavily damped burger-down response.
+- Removed all three timber fence lines and all three suburban house backdrop props from Grill Yard; the burger shack, canopy, tables, planters, and playable modules remain.
+- Deterministic 12 m/s tests at 25, 45, and 65 degrees plus an oblique rounded-corner approach produced zero stalled frames, zero boundary escapes, zero bonk events, and retained all four burger layers. The closest approach stayed 0.025 m inside the boundary; the glancing 65-degree run kept at least 11.54 m/s while riding along the wall.
+- Production build, required web-game client, console checks, and inspected gameplay/overhead captures pass. Evidence is under `output/perimeter-angle-fix/`.
