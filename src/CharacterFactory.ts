@@ -731,6 +731,14 @@ const TOPPINGS: ToppingDef[] = [
   { id: 'bun', label: 'Extra Bun', h: 0.14, build: () => disc(0.5, 0.14, 0xe0a04e) },
 ];
 
+/** Ingredient catalog used by both the burger stack and world pickup bubbles. */
+export const TOPPING_PICKUP_IDS = TOPPINGS.map((topping) => topping.id);
+
+/** Build the exact same 3D ingredient mesh shown after it joins the burger. */
+export function createToppingPickupModel(id: string): THREE.Group | null {
+  return TOPPINGS.find((topping) => topping.id === id)?.build() ?? null;
+}
+
 interface BurgerParts {
   group: THREE.Group;
   topBun: THREE.Group;

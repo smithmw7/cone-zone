@@ -479,7 +479,7 @@ export class GameApp {
       timeLeft: this.score?.endless ? null : this.score?.timeLeft ?? 0,
       stackHeight: this.playerRig?.stack?.count ?? 1,
       coinsFound: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
-      toppingCrates: this.park ? { collected: this.park.collectedCount, total: this.park.totalCollectibles } : null,
+      toppingsFound: this.park ? this.park.collectedToppingCount : 0,
       player: playing ? {
         x: Number(this.controller.pos.x.toFixed(2)),
         y: Number(this.controller.pos.y.toFixed(2)),
@@ -542,20 +542,25 @@ export class GameApp {
         this.physics.step(dt);
         this.score.update(dt);
 
-        // Pickups: burger/crown coins (topping + score), orbs (boost).
+        // Each pickup now has one clear job: coins are currency/score,
+        // ingredient bubbles grow the burger, and flame bubbles refill boost.
         const got = this.park.update(dt, this.controller.pos);
         for (let i = 0; i < got.coins; i++) {
           this.score.coin();
-          // The coin flips, the reveal pops: a random topping joins the stack.
-          const topping = this.playerRig?.stack?.addRandomTopping();
-          if (topping) this.ui.trickPopup(`+ ${topping.label.toUpperCase()}`, 0);
         }
         if (got.coins > 0) {
+          this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
+          this.ui.coinPickupFlyout(got.coins);
+          this.audio.coin();
+        }
+        for (const toppingId of got.toppings) {
+          const topping = this.playerRig?.stack?.addTopping(toppingId);
+          if (topping) this.ui.trickPopup(`+ ${topping.label.toUpperCase()}`, 0);
+        }
+        if (got.toppings.length > 0) {
           const h = this.playerRig?.stack?.count ?? 1;
           this.tallestBurger = Math.max(this.tallestBurger, h);
-          this.ui.setCoinCount(this.park.collectedCount, this.park.totalCollectibles);
           this.ui.setBurgerHeight(h);
-          this.ui.coinPickupFlyout(got.coins);
           this.audio.coin();
         }
         if (got.orbs > 0) {

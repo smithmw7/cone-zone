@@ -22,6 +22,7 @@ import { PhysicsWorld } from './PhysicsWorld';
 import { SkySystem } from './SkySystem';
 import { WaterSystem } from './WaterSystem';
 import { createBurgerCrownCoin } from './CoinModel';
+import { createToppingPickupModel, TOPPING_PICKUP_IDS } from './CharacterFactory';
 
 export interface RailSegment {
   a: THREE.Vector3;
@@ -31,11 +32,16 @@ export interface RailSegment {
   label?: 'rail' | 'lip';
 }
 
-interface Collectible {
+interface Pickup {
   mesh: THREE.Group;
   taken: boolean;
   spawnIndex: number;
   respawnAt?: number;
+}
+
+interface Collectible extends Pickup {
+  kind: 'coin' | 'topping';
+  toppingId?: string;
 }
 
 export type FoliageKind = 'round' | 'pine' | 'palm' | 'jungle' | 'redwood' | 'city';
@@ -110,6 +116,89 @@ function yawQuat(yaw: number): THREE.Quaternion {
 
 function xzDistance(a: THREE.Vector3, b: THREE.Vector3): number {
   return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function createToppingBubble(toppingId: string): THREE.Group {
+  const group = new THREE.Group();
+  group.name = `topping-bubble-${toppingId}`;
+  const ingredient = createToppingPickupModel(toppingId);
+  if (ingredient) {
+    ingredient.name = 'topping-model';
+    ingredient.scale.setScalar(1.12);
+    ingredient.position.y = -0.04;
+    group.add(ingredient);
+  }
+  const bubble = new THREE.Mesh(
+    new THREE.SphereGeometry(0.58, 18, 12),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xc9f4ff,
+      emissive: 0x4d9db5,
+      emissiveIntensity: 0.16,
+      transparent: true,
+      opacity: 0.34,
+      roughness: 0.08,
+      metalness: 0,
+      transmission: 0.12,
+      depthWrite: false,
+    }),
+  );
+  bubble.name = 'pickup-bubble';
+  group.add(bubble);
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.5, 0.025, 6, 28),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.62, depthWrite: false }),
+  );
+  const crossedRim = rim.clone();
+  crossedRim.rotation.y = Math.PI / 2;
+  group.add(rim, crossedRim);
+  return group;
+}
+
+function flameShape(scale = 1): THREE.Shape {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, -0.48 * scale);
+  shape.bezierCurveTo(-0.38 * scale, -0.28 * scale, -0.4 * scale, 0.08 * scale, -0.12 * scale, 0.25 * scale);
+  shape.bezierCurveTo(-0.12 * scale, 0.02 * scale, 0.02 * scale, -0.04 * scale, 0.02 * scale, -0.2 * scale);
+  shape.bezierCurveTo(0.42 * scale, 0.02 * scale, 0.3 * scale, 0.38 * scale, 0.12 * scale, 0.56 * scale);
+  shape.bezierCurveTo(0.54 * scale, 0.28 * scale, 0.5 * scale, -0.3 * scale, 0, -0.48 * scale);
+  return shape;
+}
+
+function createFlameBoostBubble(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'flame-boost-bubble';
+  const outer = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(flameShape(), { depth: 0.1, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0xd83b00, emissiveIntensity: 0.85, roughness: 0.38 }),
+  );
+  outer.position.z = -0.05;
+  outer.scale.setScalar(0.82);
+  group.add(outer);
+  const inner = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(flameShape(0.48), { depth: 0.115, bevelEnabled: false }),
+    new THREE.MeshStandardMaterial({ color: 0xffdc43, emissive: 0xff8a00, emissiveIntensity: 1.15, roughness: 0.4 }),
+  );
+  inner.position.set(0.02, -0.16, -0.057);
+  group.add(inner);
+  const crossedOuter = outer.clone();
+  crossedOuter.rotation.y = Math.PI / 2;
+  const crossedInner = inner.clone();
+  crossedInner.rotation.y = Math.PI / 2;
+  group.add(crossedOuter, crossedInner);
+  const bubble = new THREE.Mesh(
+    new THREE.SphereGeometry(0.62, 18, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.31, depthWrite: false }),
+  );
+  bubble.name = 'boost-bubble';
+  group.add(bubble);
+  const boostRim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.54, 0.025, 6, 28),
+    new THREE.MeshBasicMaterial({ color: 0xffb13b, transparent: true, opacity: 0.72, depthWrite: false }),
+  );
+  const crossedBoostRim = boostRim.clone();
+  crossedBoostRim.rotation.y = Math.PI / 2;
+  group.add(boostRim, crossedBoostRim);
+  return group;
 }
 
 /** Solid triangular prism: vertical back at z=0, slope down to z=run. */
@@ -345,12 +434,13 @@ export class SkateParkScene {
   readonly controllerCornerRadius: number;
 
   private collectibles: Collectible[] = [];
-  private orbs: Collectible[] = [];
+  private orbs: Pickup[] = [];
   private coinSpawnPool: THREE.Vector3[] = [];
   private boostSpawnPool: THREE.Vector3[] = [];
   private pickupBlockers: THREE.Box3[] = [];
   private coinRespawnCursor = 0;
   private coinsCollectedTotal = 0;
+  private toppingsCollectedTotal = 0;
   private spinTime = 0;
   private elapsed = 0;
   private wedgeGeoCache = new Map<string, THREE.BufferGeometry>();
@@ -1460,7 +1550,7 @@ vec3 triplanarColor() {
   }
 
   /* ================================================================ */
-  /* Collectibles: gold coins & blue boost orbs                       */
+  /* Collectibles: gold coins, ingredient bubbles & flame boosts     */
   /* ================================================================ */
 
   private validatePickupSpots(
@@ -1526,9 +1616,9 @@ vec3 triplanarColor() {
   }
 
   /**
-   * Gold coins use a larger approved pool than the number visible at once.
-   * Collected coins return at alternate clear spots, keeping endless runs
-   * populated without stacking pickups on top of one another.
+   * The approved pickup pool alternates true currency coins with visible
+   * burger ingredients. Collected pickups return at alternate clear spots,
+   * keeping endless runs populated without overlaps.
    */
   placeCollectibles(spots: [number, number, number][], activeCount = spots.length): void {
     this.coinSpawnPool = this.validatePickupSpots(spots, 'coin');
@@ -1536,32 +1626,31 @@ vec3 triplanarColor() {
     for (let i = 0; i < visibleCount; i++) {
       const { x, y, z } = this.coinSpawnPool[i];
       const g = new THREE.Group();
-      const coin = createBurgerCrownCoin({ radius: 0.42, depth: 0.13, glow: true });
-      coin.rotation.y = Math.random() * Math.PI * 2;
-      g.add(coin);
+      const kind: Collectible['kind'] = i % 2 === 0 ? 'coin' : 'topping';
+      const toppingId = kind === 'topping'
+        ? TOPPING_PICKUP_IDS[Math.floor(i / 2) % TOPPING_PICKUP_IDS.length]
+        : undefined;
+      if (kind === 'coin') {
+        const coin = createBurgerCrownCoin({ radius: 0.42, depth: 0.13, glow: true });
+        coin.rotation.y = Math.random() * Math.PI * 2;
+        g.add(coin);
+      } else if (toppingId) {
+        g.add(createToppingBubble(toppingId));
+      }
       g.position.set(x, y, z);
       g.userData.baseY = y;
       this.scene.add(g);
-      this.collectibles.push({ mesh: g, taken: false, spawnIndex: i });
+      this.collectibles.push({ mesh: g, kind, toppingId, taken: false, spawnIndex: i });
     }
     this.coinRespawnCursor = visibleCount;
-    this.totalCollectibles = this.collectibles.length;
+    this.totalCollectibles = this.collectibles.filter((pickup) => pickup.kind === 'coin').length;
   }
 
   placeBoostOrbs(spots: [number, number, number][]): void {
     this.boostSpawnPool = this.validatePickupSpots(spots, 'boost');
-    const orbMat = new THREE.MeshLambertMaterial({
-      color: 0x59c8ff, emissive: 0x2a8aff, emissiveIntensity: 1.1, flatShading: true,
-    });
     for (let i = 0; i < this.boostSpawnPool.length; i++) {
       const { x, y, z } = this.boostSpawnPool[i];
-      const g = new THREE.Group();
-      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), orbMat);
-      const shell = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.48, 0),
-        new THREE.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: 0.25 }),
-      );
-      g.add(orb, shell);
+      const g = createFlameBoostBubble();
       g.position.set(x, y, z);
       this.scene.add(g);
       this.orbs.push({ mesh: g, taken: false, spawnIndex: i });
@@ -1597,7 +1686,7 @@ vec3 triplanarColor() {
       this.orbs[i].spawnIndex = i;
       this.orbs[i].mesh.position.copy(spot);
     }
-    this.totalCollectibles = Math.min(this.totalCollectibles, this.coinSpawnPool.length);
+    this.totalCollectibles = this.collectibles.filter((pickup) => !pickup.taken && pickup.kind === 'coin').length;
   }
 
   private respawnCoin(coin: Collectible, playerPos: THREE.Vector3): boolean {
@@ -1621,7 +1710,7 @@ vec3 triplanarColor() {
     return false;
   }
 
-  update(dt: number, playerPos: THREE.Vector3): { coins: number; orbs: number } {
+  update(dt: number, playerPos: THREE.Vector3): { coins: number; toppings: string[]; orbs: number } {
     this.spinTime += dt;
     this.elapsed += dt;
     if (this.water) {
@@ -1636,6 +1725,7 @@ vec3 triplanarColor() {
       (cyl.material as THREE.MeshBasicMaterial).opacity = 0.12 + Math.abs(Math.sin(this.spinTime * 2)) * 0.1;
     }
     let coins = 0;
+    const toppings: string[] = [];
     for (const c of this.collectibles) {
       if (c.taken) {
         if (c.respawnAt !== undefined && this.elapsed >= c.respawnAt) this.respawnCoin(c, playerPos);
@@ -1652,8 +1742,13 @@ vec3 triplanarColor() {
         c.taken = true;
         c.mesh.visible = false;
         c.respawnAt = this.elapsed + 8;
-        this.coinsCollectedTotal++;
-        coins++;
+        if (c.kind === 'coin') {
+          this.coinsCollectedTotal++;
+          coins++;
+        } else if (c.toppingId) {
+          this.toppingsCollectedTotal++;
+          toppings.push(c.toppingId);
+        }
       }
     }
     let orbs = 0;
@@ -1675,15 +1770,20 @@ vec3 triplanarColor() {
         orbs++;
       }
     }
-    return { coins, orbs };
+    return { coins, toppings, orbs };
   }
 
   get collectedCount(): number {
     return this.coinsCollectedTotal;
   }
 
+  get collectedToppingCount(): number {
+    return this.toppingsCollectedTotal;
+  }
+
   resetCollectibles(): void {
     this.coinsCollectedTotal = 0;
+    this.toppingsCollectedTotal = 0;
     this.coinRespawnCursor = this.collectibles.length;
     for (let i = 0; i < this.collectibles.length; i++) {
       const c = this.collectibles[i];
@@ -1707,6 +1807,7 @@ vec3 triplanarColor() {
   pickupDiagnostics(): {
     coinPool: number;
     activeCoins: number;
+    activeToppings: number;
     boosts: number;
     minimumCoinSpacing: number;
     minimumCoinBoostSpacing: number;
@@ -1721,7 +1822,8 @@ vec3 triplanarColor() {
     };
     return {
       coinPool: this.coinSpawnPool.length,
-      activeCoins: this.collectibles.filter((coin) => !coin.taken).length,
+      activeCoins: this.collectibles.filter((pickup) => !pickup.taken && pickup.kind === 'coin').length,
+      activeToppings: this.collectibles.filter((pickup) => !pickup.taken && pickup.kind === 'topping').length,
       boosts: this.orbs.length,
       minimumCoinSpacing: pairMin(this.coinSpawnPool, this.coinSpawnPool, true),
       minimumCoinBoostSpacing: pairMin(this.coinSpawnPool, this.boostSpawnPool, false),

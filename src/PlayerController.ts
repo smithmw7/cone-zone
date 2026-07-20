@@ -637,6 +637,11 @@ export class PlayerController {
       n.normalize();
       if (dir.dot(n) > -0.15) continue; // grazing pass, let it slide
 
+      // The retaining perimeter deliberately finishes in a vertical face.
+      // Reaching that face should turn the rider back into the park, but it
+      // is part of the rideable transition rather than a wipeout obstacle.
+      const perimeterImpact = this.isPerimeterImpact(hit.normal);
+
       // Push back out to skin distance.
       const depth = BONK_SKIN - hit.dist;
       if (depth > 0) this.pos.addScaledVector(n, depth);
@@ -652,12 +657,56 @@ export class PlayerController {
       if (nhs > 0.8) this.yaw = Math.atan2(this.vel.x, this.vel.z);
 
       this.squashVel = -4; // impact squash
-      if (this.bonkEventCooldown <= 0) {
+      if (!perimeterImpact && this.bonkEventCooldown <= 0) {
         this.bonkEventCooldown = 0.6;
         this.events.onBonk();
       }
       break;
     }
+  }
+
+  /**
+   * The controller bounds sit just outside the rendered perimeter. Detect the
+   * shared four-metre transition/wall band (including rounded corners) and
+   * make sure the hit normal points inward, so nearby interior obstacles still
+   * produce normal burger-down bonks.
+   */
+  private isPerimeterImpact(hitNormal: THREE.Vector3): boolean {
+    const r = Math.max(0, Math.min(this.boundaryCornerRadius, this.bounds.x, this.bounds.z));
+    const ax = Math.abs(this.pos.x);
+    const az = Math.abs(this.pos.z);
+    const cx = this.bounds.x - r;
+    const cz = this.bounds.z - r;
+    const inward = new THREE.Vector3();
+    let inset = Infinity;
+
+    if (r > 0 && ax > cx && az > cz) {
+      const dx = ax - cx;
+      const dz = az - cz;
+      const radialDistance = Math.hypot(dx, dz);
+      if (radialDistance > 1e-4) {
+        inward.set(-Math.sign(this.pos.x) * dx / radialDistance, 0, -Math.sign(this.pos.z) * dz / radialDistance);
+        inset = r - radialDistance;
+      }
+    } else {
+      const insetX = this.bounds.x - ax;
+      const insetZ = this.bounds.z - az;
+      if (insetX <= insetZ) {
+        inward.set(-Math.sign(this.pos.x || 1), 0, 0);
+        inset = insetX;
+      } else {
+        inward.set(0, 0, -Math.sign(this.pos.z || 1));
+        inset = insetZ;
+      }
+    }
+
+    // The physical profile begins four metres inside the emergency clamp:
+    // 1m from clamp to wall path plus the 3m quarter transition.
+    if (inset < -0.1 || inset > 4.15) return false;
+    const horizontalHit = new THREE.Vector3(hitNormal.x, 0, hitNormal.z);
+    if (horizontalHit.lengthSq() < 1e-4) return false;
+    horizontalHit.normalize();
+    return horizontalHit.dot(inward) > 0.82;
   }
 
   private clampToBounds(): void {

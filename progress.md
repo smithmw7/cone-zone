@@ -160,3 +160,19 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Replaced the CSS placeholder art with transparent renders of the actual gameplay rigs produced by `CharacterFactory`, including the burger mounted on each construction cone.
 - Scaled the renders to each card and allowed their silhouettes to rise slightly above the top edge of the framed art area.
 - Production build passes. Browser validation at 390 x 568, 390 x 844, 844 x 390, and 1280 x 720 confirmed all four cards and the action button are fully visible without grid/page overflow; every card selected the correct player, the next action entered customization, all model images loaded, and no browser errors were reported. Captures are under `output/player-grid/`.
+
+## 2026-07-20 Perimeter burger-down exception
+
+- New request: an impact at the top of an outer wall may turn the rider back into the park, but must not trigger `BURGER DOWN` or remove collected ingredients.
+- Split perimeter-wall impacts from true obstacle bonks using the shared controller bounds and rounded-corner geometry; the physical bounce remains, while only the wipeout event is suppressed for the outer transition/wall band.
+- Controlled Grill Yard validation started at 12 m/s with a four-layer burger, climbed to y=6.12, returned to x=45.13 inside the park, retained all four layers, emitted zero bonk events, and reported no browser errors.
+- A center-park hit is still classified as non-perimeter, and invoking the normal bonk path still resets a two-layer burger to its base layer. Production build passes; captures and results are under `output/perimeter-no-wipeout/`.
+
+## 2026-07-20 Distinct pickup icons and effects
+
+- Split the shared coin-plus-random-topping pickup into two explicit pickup types using the existing safe spawn pools: true gold coins and translucent ingredient bubbles.
+- Ingredient bubbles contain the exact 3D patty, cheese, lettuce, tomato, pickle, onion, bacon, or bun mesh that is added to the burger when collected.
+- Replaced blue boost crystals with a crossed 3D flame icon inside a translucent orange bubble, keeping the existing boost locations and refill amount.
+- Grill Yard now starts with 15 coins, 15 ingredient bubbles, and 9 flame boosts across its validated pool, with zero geometry overlaps.
+- Browser behavior validation confirmed: a coin changed score from 0 to 50 and coin count from 0 to 1 while burger height stayed 1; an ingredient changed burger height to 2 while coin count stayed 1; a flame boost raised boost from 0.1 to 0.5 without changing coins or burger height. No browser errors were reported.
+- Production build and required web-game client pass. Visual and interaction evidence is under `output/pickup-icons/`.
