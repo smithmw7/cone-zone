@@ -176,3 +176,18 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Grill Yard now starts with 15 coins, 15 ingredient bubbles, and 9 flame boosts across its validated pool, with zero geometry overlaps.
 - Browser behavior validation confirmed: a coin changed score from 0 to 50 and coin count from 0 to 1 while burger height stayed 1; an ingredient changed burger height to 2 while coin count stayed 1; a flame boost raised boost from 0.1 to 0.5 without changing coins or burger height. No browser errors were reported.
 - Production build and required web-game client pass. Visual and interaction evidence is under `output/pickup-icons/`.
+
+## 2026-07-20 Best-score placement
+
+- Moved the best-score ticket out of the transformed hero container and pinned it in the lower action zone directly above `DROP IN`, keeping it clear of the animated burger.
+- Added a compact short-landscape treatment so the ticket also clears the tagline and character while remaining readable.
+- Verified 390 x 568, 390 x 844, 844 x 390, and 1280 x 720 layouts: the ticket and button remain fully visible with a positive gap, and `DROP IN` still routes to player selection. Production build and required web-game client pass with no browser errors; captures are under `output/best-score-bottom/`.
+
+## 2026-07-20 Perimeter containment correction
+
+- New regression report: riders could cross through the outer wall after climbing the transition.
+- Root cause: the prior emergency boundary was moved behind the thin physical wall and visual cap, leaving a pocket the player could enter if a raycast missed the wall face.
+- Aligned the shared rounded controller boundary exactly with the physical wall path. The complete three-metre quarter-circle remains inside that line and fully rideable, while no player position can cross behind the wall.
+- Straight-wall stress test at 12 m/s climbed to y=5.88, remained 0.078 m inside the wall path at its closest point, and returned to x=26.90 inside the park.
+- Rounded-corner stress test at 12 m/s climbed to y=5.90, remained 0.101 m inside the corner arc, and returned to the interior. Both tests kept all four burger layers, emitted zero bonk events, and reported no browser errors.
+- Production build and required web-game client pass. Numeric results and the inspected wall-riding capture are under `output/perimeter-containment/`.

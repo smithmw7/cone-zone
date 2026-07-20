@@ -105,10 +105,10 @@ const PERIMETER_TRANSITION_H = 3;
 const PERIMETER_WALL_H = 6.5;
 const PERIMETER_CAP_DEPTH = 0.65;
 const PERIMETER_PATH_OUTSET = 0.5;
-// The controller's emergency clamp must sit OUTSIDE the complete wall/cap.
-// Putting it at config.bounds intersects the upper half of the transition and
-// causes an artificial hard reversal before the rider can finish the ramp.
-const PERIMETER_SAFETY_MARGIN = PERIMETER_PATH_OUTSET + PERIMETER_CAP_DEPTH + 0.35;
+// The wall path is the absolute containment line. The three-metre transition
+// lives entirely inside it, so this allows the full ride-up without leaving a
+// pocket behind the thin trimesh that the player could cross into.
+const PERIMETER_CONTAINMENT_MARGIN = PERIMETER_PATH_OUTSET;
 
 function yawQuat(yaw: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
@@ -429,7 +429,7 @@ export class SkateParkScene {
   private driveGlow: { ring: THREE.Mesh; cyl: THREE.Mesh } | null = null;
   private stripeTex?: THREE.CanvasTexture;
   readonly bounds: { x: number; z: number };
-  /** Failsafe only: outside the physical perimeter wall and visual cap. */
+  /** Absolute containment line, exactly aligned to the physical wall path. */
   readonly controllerBounds: { x: number; z: number };
   readonly controllerCornerRadius: number;
 
@@ -453,14 +453,11 @@ export class SkateParkScene {
     this.theme = config.theme;
     this.bounds = config.bounds;
     this.controllerBounds = {
-      x: config.bounds.x + PERIMETER_SAFETY_MARGIN,
-      z: config.bounds.z + PERIMETER_SAFETY_MARGIN,
+      x: config.bounds.x + PERIMETER_CONTAINMENT_MARGIN,
+      z: config.bounds.z + PERIMETER_CONTAINMENT_MARGIN,
     };
     const perimeterCornerRadius = Math.min(16, config.bounds.x * 0.5, config.bounds.z * 0.5);
-    // Keep the clamp's rounded-corner center identical to the physical wall's
-    // center; only its radius expands outward past the cap.
-    this.controllerCornerRadius =
-      perimeterCornerRadius + PERIMETER_SAFETY_MARGIN - PERIMETER_PATH_OUTSET;
+    this.controllerCornerRadius = perimeterCornerRadius;
     this.spawnPoint = new THREE.Vector3(config.spawn.x, config.spawn.y ?? 0.5, config.spawn.z);
     this.spawnYaw = config.spawn.yaw;
 

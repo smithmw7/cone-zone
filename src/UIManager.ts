@@ -429,7 +429,9 @@ export class UIManager {
     el('p', 'tagline', card, 'FLIP. STACK. SHRED.');
 
     const best = Number(localStorage.getItem('coneZoneBest') ?? 0);
-    const bestTicket = el('div', 'best-score', card);
+    // Keep the score in the lower action zone, independent of the transformed
+    // hero, so it stays above DROP IN instead of crossing the 3D burger.
+    const bestTicket = el('div', 'best-score', s);
     el('small', '', bestTicket, 'BEST ORDER');
     el('strong', '', bestTicket, best.toLocaleString());
 

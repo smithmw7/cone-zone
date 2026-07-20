@@ -1681,16 +1681,20 @@ input {
 }
 
 .best-score {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 84px);
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  margin-top: clamp(205px, 28vh, 245px);
+  margin: 0;
   padding: 6px 12px;
   border: 2px solid var(--sb-char);
   color: var(--sb-char);
   background: var(--sb-cream);
   box-shadow: 3px 4px 0 var(--sb-char);
-  transform: rotate(-2deg);
+  transform: translateX(-50%) rotate(-2deg);
 }
 
 .best-score small { color: var(--sb-toast); font-size: 9px; font-weight: 900; letter-spacing: 0.12em; }
@@ -2025,7 +2029,6 @@ input {
 @media (max-height: 690px) {
   .home-hero { top: 75px; }
   .game-logo { width: min(68vw, 320px); }
-  .best-score { margin-top: 150px; }
   .customize-panel { height: 250px; }
   .tab { height: 44px; }
   .chip { min-height: 51px; }
@@ -2037,7 +2040,9 @@ input {
   .home-hero { top: 66px; }
   .game-logo { width: min(38vw, 310px); }
   .tagline { margin-top: -18px; font-size: 11px; }
-  .best-score { margin-top: 65px; }
+  .best-score { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 68px); padding: 4px 10px; }
+  .best-score small { font-size: 8px; line-height: 1; }
+  .best-score strong { font-size: 18px; line-height: 1; }
   .home-primary { min-height: 58px; margin: 0; font-size: 25px; }
 }
 

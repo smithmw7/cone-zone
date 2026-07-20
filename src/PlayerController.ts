@@ -666,8 +666,8 @@ export class PlayerController {
   }
 
   /**
-   * The controller bounds sit just outside the rendered perimeter. Detect the
-   * shared four-metre transition/wall band (including rounded corners) and
+   * The controller bounds match the rendered wall path. Detect the shared
+   * three-metre transition/wall band (including rounded corners) and
    * make sure the hit normal points inward, so nearby interior obstacles still
    * produce normal burger-down bonks.
    */
@@ -700,9 +700,8 @@ export class PlayerController {
       }
     }
 
-    // The physical profile begins four metres inside the emergency clamp:
-    // 1m from clamp to wall path plus the 3m quarter transition.
-    if (inset < -0.1 || inset > 4.15) return false;
+    // The physical quarter-circle profile begins three metres inside its wall.
+    if (inset < -0.1 || inset > 3.15) return false;
     const horizontalHit = new THREE.Vector3(hitNormal.x, 0, hitNormal.z);
     if (horizontalHit.lengthSq() < 1e-4) return false;
     horizontalHit.normalize();

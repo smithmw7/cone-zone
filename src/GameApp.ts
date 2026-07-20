@@ -166,9 +166,8 @@ export class GameApp {
       () => this.score.specialReady,
       () => this.score.consumeSpecial(),
     );
-    // This clamp is only an escape failsafe. The park's values sit outside
-    // the complete curved perimeter so its physical transition controls the
-    // ride-up instead of an invisible rectangular bounce.
+    // The clamp matches the physical wall path: the full transition remains
+    // rideable, while no missed raycast can put the player behind the wall.
     this.controller.bounds = this.park.controllerBounds;
     this.controller.boundaryCornerRadius = this.park.controllerCornerRadius;
     this.controller.levelSpeedMul = config.physics?.speedMul ?? 1;
