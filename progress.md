@@ -35,6 +35,23 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Verified all four cards update `selectedPlayer`; a normal Highway Cone run collected two pickups and grew from stack height 1 to 3.
 - Verified a stationary Barricade Cone with cheese, lettuce, and tomato at stack height 4; screenshots are under `output/player-selection/`.
 
+## 2026-07-20 Perimeter wall ride-up fix
+
+- New request: all levels' outer walls should ride like ramps instead of hitting an invisible hard stop and reversing.
+- Reproduced the issue on Grill Yard: the controller safety clamp fired at x=67.5 while the shared 3 m perimeter transition was still only 1.44 m high.
+- Root cause: the clamp used authored floor bounds even though the curved wall extends 0.5 m beyond them and the visual cap extends another 0.65 m.
+- Moved the shared controller failsafe outside the complete physical wall/cap profile while preserving the physical wall's rounded-corner center.
+- Controlled straight-wall validation at 12 m/s stayed grounded to y=1.97 on the curve, rose naturally to y=5.52, landed, and rolled back into the park; the old clamp had reversed at y=1.44.
+- Controlled corner validation rose to y=5.71 and returned inside the transition without an escape or console error.
+- The fix lives in the shared `SkateParkScene` perimeter/controller bounds used by all eight levels. Visual QA is under `output/perimeter-ramp-fix/`.
+
+## 2026-07-20 Bottom-pinned Drop In button
+
+- New request: pin the start-screen `DROP IN` button to the bottom safe area so it does not overlap the animated burger across screen sizes.
+- Moved the button outside the transformed hero container and pinned it with a fixed, horizontally centered, safe-area-aware bottom position; preserved its pressed-state motion.
+- Verified 390 x 568, 390 x 844, and 844 x 390 layouts: the button retained a 20 px bottom gap, stayed clear of the burger, and routed to player selection with no console errors.
+- Required web-game client screenshot and responsive captures are under `output/drop-in-bottom/`.
+
 ## 2026-07-10 Perimeter wall rebuild
 
 - New request: make map walls more forgiving with a tighter, lower curve into a straight concrete wall and concrete top cap; prevent wall-top bonks and corner escapes; test ordinary wall and corner movement.

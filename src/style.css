@@ -1695,7 +1695,19 @@ input {
 
 .best-score small { color: var(--sb-toast); font-size: 9px; font-weight: 900; letter-spacing: 0.12em; }
 .best-score strong { font-size: 22px; }
-.home-primary { width: min(74vw, 330px); min-height: 68px; margin-top: 18px; font-size: 30px; }
+.home-primary {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  width: min(74vw, 330px);
+  min-height: 68px;
+  margin: 0;
+  font-size: 30px;
+  transform: translateX(-50%);
+}
+
+.home-primary:active { transform: translate(-50%, 4px); }
 
 /* Shared screen headers ---------------------------------------------------- */
 
@@ -2026,7 +2038,7 @@ input {
   .game-logo { width: min(38vw, 310px); }
   .tagline { margin-top: -18px; font-size: 11px; }
   .best-score { margin-top: 65px; }
-  .home-primary { min-height: 58px; margin-top: 14px; font-size: 25px; }
+  .home-primary { min-height: 58px; margin: 0; font-size: 25px; }
 }
 
 /* Player select ---------------------------------------------------------- */

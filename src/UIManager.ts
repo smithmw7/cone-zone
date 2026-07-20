@@ -366,7 +366,9 @@ export class UIManager {
     el('small', '', bestTicket, 'BEST ORDER');
     el('strong', '', bestTicket, best.toLocaleString());
 
-    const play = el('button', 'btn btn-big btn-primary home-primary', card, 'DROP IN');
+    // Keep the primary action outside the transformed hero container so its
+    // fixed safe-area position is relative to the viewport on every screen.
+    const play = el('button', 'btn btn-big btn-primary home-primary', s, 'DROP IN');
     play.addEventListener('click', () => this.cb.onPlay());
   }
 

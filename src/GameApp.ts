@@ -166,11 +166,11 @@ export class GameApp {
       () => this.score.specialReady,
       () => this.score.consumeSpecial(),
     );
-    this.controller.bounds = config.bounds;
-    this.controller.boundaryCornerRadius = Math.max(
-      0.5,
-      Math.min(16, config.bounds.x * 0.5, config.bounds.z * 0.5) - 0.5,
-    );
+    // This clamp is only an escape failsafe. The park's values sit outside
+    // the complete curved perimeter so its physical transition controls the
+    // ride-up instead of an invisible rectangular bounce.
+    this.controller.bounds = this.park.controllerBounds;
+    this.controller.boundaryCornerRadius = this.park.controllerCornerRadius;
     this.controller.levelSpeedMul = config.physics?.speedMul ?? 1;
     this.controller.levelTurnMul = config.physics?.turnMul ?? 1;
     this.physics.createPlayerBody(this.park.spawnPoint);
