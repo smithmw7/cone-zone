@@ -555,7 +555,29 @@ export class PlayerController {
     if (hit && hit.dist < dist + 0.3) {
       this.pos.addScaledVector(dir, Math.max(0, hit.dist - 0.35));
       const up = hit.normal.y >= 0 ? hit.normal : hit.normal.clone().negate();
-      if (up.y > 0.3) {
+      if (up.y <= 0.3 && this.isPerimeterImpact(hit.normal)) {
+        // A high-speed airborne landing on the near-vertical perimeter does
+        // not qualify for the ground snap. Previously the sweep stopped at
+        // the face but left the same into-wall velocity intact, so every
+        // following frame hit the identical point and AIR distance climbed
+        // forever. Remove the into-surface component, give the rider a small
+        // inward peel, and keep them dropping so they slide off and land.
+        const inward = this.perimeterInward();
+        if (inward) {
+          const intoSurface = this.vel.dot(hit.normal);
+          if (intoSurface < 0) this.vel.addScaledVector(hit.normal, -intoSurface);
+          const inwardSpeed = this.vel.x * inward.x + this.vel.z * inward.z;
+          if (inwardSpeed < 3) {
+            this.vel.x += inward.x * (3 - inwardSpeed);
+            this.vel.z += inward.z * (3 - inwardSpeed);
+          }
+          this.vel.y = Math.min(this.vel.y, -2);
+          this.pos.addScaledVector(inward, 0.08);
+          this.yaw = Math.atan2(inward.x, inward.z);
+          this.speed = Math.max(PERIMETER_MIN_SPEED, this.horizontalSpeed);
+          this.vertAir = false;
+        }
+      } else if (up.y > 0.3) {
         const into = this.vel.dot(up);
         if (into < 0) this.vel.addScaledVector(up, -into); // slide along it
       }

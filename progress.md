@@ -215,3 +215,12 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Directly reproduced the screenshot state with a Highway Cone at zero horizontal speed. It turned inward on the first frame, recorded zero slow frames at the wall, and exited from x=67.94 to x=33.58 without a bonk or lost ingredient.
 - Re-ran 25, 45, and 65 degree wall approaches plus the rounded corner for both Highway Cone and Skate Burger. All remained inside, retained four layers, emitted zero bonks, had zero stalled frames, and produced no browser errors.
 - Production build and required web-game client pass; the inspected cone gameplay capture is under `output/perimeter-angle-fix/`.
+
+## 2026-07-20 Airborne perimeter contact release
+
+- Follow-up screenshots showed `AIR 699m` and `AIR 285m` while the player capsule remained fixed against the wall, including both a high-speed landing and a normal drive into the transition.
+- Root cause: the swept airborne move stopped at steep perimeter geometry but intentionally left steep hits for the horizontal wall resolver. With little usable horizontal movement, the resolver could miss and the unchanged into-wall air velocity swept into the same point forever.
+- Steep airborne perimeter hits now remove their into-surface velocity, add a three-metre-per-second inward peel, maintain downward motion, clear the vert lock, and move slightly off the face so the rider slides down and lands.
+- Added position-based stall detection because the prior velocity-only test could miss a player whose velocity remained high while their swept position stayed fixed.
+- Verified an 18 m/s straight ground drive plus direct, oblique, and near-vertical airborne impacts with up to 24 m/s downward speed. Every case cleared the wall, had zero stationary frames, stayed inside, landed, retained four burger layers, emitted zero bonks, and produced no browser errors.
+- Repeated the full wall, corner, grounded-deadlock, and airborne-impact matrix with Skate Burger and Highway Cone. Production build and required web-game client pass.
