@@ -206,3 +206,12 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Removed all three timber fence lines and all three suburban house backdrop props from Grill Yard; the burger shack, canopy, tables, planters, and playable modules remain.
 - Deterministic 12 m/s tests at 25, 45, and 65 degrees plus an oblique rounded-corner approach produced zero stalled frames, zero boundary escapes, zero bonk events, and retained all four burger layers. The closest approach stayed 0.025 m inside the boundary; the glancing 65-degree run kept at least 11.54 m/s while riding along the wall.
 - Production build, required web-game client, console checks, and inspected gameplay/overhead captures pass. Evidence is under `output/perimeter-angle-fix/`.
+
+## 2026-07-20 Upper-transition deadlock recovery
+
+- Follow-up screenshot showed the remaining stall state: a tall cone could become grounded on the near-vertical upper transition while pointed directly outward.
+- Root cause: projecting an outward-facing direction onto that near-vertical ground plane can collapse to a near-zero vector. With no horizontal velocity, the wall-ray redirect never runs, leaving the rider attached to the slope.
+- Added a perimeter-only pre-normalization guard: when the rider reaches that upper dead zone facing outward, turn them downhill into the park and retain a four-metre-per-second recovery floor. Interior ramps and obstacle bonks are unchanged.
+- Directly reproduced the screenshot state with a Highway Cone at zero horizontal speed. It turned inward on the first frame, recorded zero slow frames at the wall, and exited from x=67.94 to x=33.58 without a bonk or lost ingredient.
+- Re-ran 25, 45, and 65 degree wall approaches plus the rounded corner for both Highway Cone and Skate Burger. All remained inside, retained four layers, emitted zero bonks, had zero stalled frames, and produced no browser errors.
+- Production build and required web-game client pass; the inspected cone gameplay capture is under `output/perimeter-angle-fix/`.

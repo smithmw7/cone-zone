@@ -283,8 +283,30 @@ export class PlayerController {
       }
 
       // Project facing onto the ground plane → velocity follows ramps.
-      const f = this.forward;
-      const slopeF = f.clone().addScaledVector(this.groundNormal, -f.dot(this.groundNormal)).normalize();
+      let f = this.forward;
+      let slopeF = f.clone().addScaledVector(this.groundNormal, -f.dot(this.groundNormal));
+
+      // A nearly vertical perimeter face can make the projected forward
+      // vector approach zero when the rider points straight outward. That
+      // leaves the controller grounded with no horizontal velocity, so the
+      // wall ray never runs and the rider can hang on the upper transition.
+      // Before normalizing, recognize that exact perimeter-only dead zone and
+      // roll the rider back downhill into the park with a small speed floor.
+      const perimeterInward = this.perimeterInward();
+      const surfaceInward = new THREE.Vector3(this.groundNormal.x, 0, this.groundNormal.z);
+      const upperPerimeter = perimeterInward !== null
+        && this.groundNormal.y < 0.5
+        && surfaceInward.lengthSq() > 1e-4
+        && surfaceInward.normalize().dot(perimeterInward) > 0.82;
+      const facingOutward = perimeterInward !== null && f.dot(perimeterInward) < -0.65;
+      if (upperPerimeter && facingOutward && slopeF.lengthSq() < 0.2) {
+        this.yaw = Math.atan2(perimeterInward.x, perimeterInward.z);
+        this.speed = Math.max(PERIMETER_MIN_SPEED, Math.abs(this.speed));
+        f = this.forward;
+        slopeF = f.clone().addScaledVector(this.groundNormal, -f.dot(this.groundNormal));
+      }
+      if (slopeF.lengthSq() < 1e-5 && perimeterInward !== null) slopeF.copy(perimeterInward);
+      slopeF.normalize();
       // Slope gravity: uphill bleeds speed, downhill feeds it. The pull
       // fades on steep transitions (normal.y → 0) so quarter pipes and
       // bowls convert speed into launch instead of eating it.
@@ -693,6 +715,16 @@ export class PlayerController {
    * produce normal burger-down bonks.
    */
   private isPerimeterImpact(hitNormal: THREE.Vector3): boolean {
+    const inward = this.perimeterInward();
+    if (!inward) return false;
+    const horizontalHit = new THREE.Vector3(hitNormal.x, 0, hitNormal.z);
+    if (horizontalHit.lengthSq() < 1e-4) return false;
+    horizontalHit.normalize();
+    return horizontalHit.dot(inward) > 0.82;
+  }
+
+  /** Inward horizontal normal while inside the shared 3m perimeter profile. */
+  private perimeterInward(): THREE.Vector3 | null {
     const r = Math.max(0, Math.min(this.boundaryCornerRadius, this.bounds.x, this.bounds.z));
     const ax = Math.abs(this.pos.x);
     const az = Math.abs(this.pos.z);
@@ -722,11 +754,8 @@ export class PlayerController {
     }
 
     // The physical quarter-circle profile begins three metres inside its wall.
-    if (inset < -0.1 || inset > 3.15) return false;
-    const horizontalHit = new THREE.Vector3(hitNormal.x, 0, hitNormal.z);
-    if (horizontalHit.lengthSq() < 1e-4) return false;
-    horizontalHit.normalize();
-    return horizontalHit.dot(inward) > 0.82;
+    if (inset < -0.1 || inset > 3.15) return null;
+    return inward;
   }
 
   private clampToBounds(): void {
