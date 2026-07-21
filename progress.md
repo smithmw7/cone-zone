@@ -224,3 +224,12 @@ Original prompt: update the game UI based on these mocks and generate the exact 
 - Added position-based stall detection because the prior velocity-only test could miss a player whose velocity remained high while their swept position stayed fixed.
 - Verified an 18 m/s straight ground drive plus direct, oblique, and near-vertical airborne impacts with up to 24 m/s downward speed. Every case cleared the wall, had zero stationary frames, stayed inside, landed, retained four burger layers, emitted zero bonks, and produced no browser errors.
 - Repeated the full wall, corner, grounded-deadlock, and airborne-impact matrix with Skate Burger and Highway Cone. Production build and required web-game client pass.
+
+## 2026-07-20 Absolute perimeter stall watchdog
+
+- Another debug screenshot showed the player capsule still stationary on the transition, demonstrating that state-specific ground and air release branches cannot cover every mesh-seam contact.
+- Added an absolute perimeter watchdog based on actual frame-to-frame position rather than reported velocity or controller mode.
+- If an active, non-braking rider remains virtually motionless while elevated in the outer three-metre wall profile for 0.25 seconds, the controller moves them 0.75 m inward, gives them 6 m/s inward and 2 m/s downward velocity, clears the vert lock, and resumes in air so they immediately slide and land.
+- The recovery is perimeter-only, does not fire on the flat floor, does not affect a rider intentionally holding brake, and never emits a burger-down event.
+- A deliberately frozen debug-state test released on frame 16 (0.267 seconds), moved from x=67.60 to x=66.85, and produced the expected inward/downward velocity. The full straight, angled, corner, grounded, and airborne wall matrix still passes with zero stalls, boundary escapes, bonks, lost layers, or browser errors.
+- Production build, required web-game client, and inspected wall-contact capture pass.

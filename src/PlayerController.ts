@@ -144,6 +144,7 @@ export class PlayerController {
   // the player pogo-sticks forever on the rail tip.
   private grindCooldown = 0;
   private bonkEventCooldown = 0; // rate-limits the popup, not the physics
+  private perimeterStallTime = 0;
 
   // animation state
   private wobbleT = 0;
@@ -196,6 +197,7 @@ export class PlayerController {
     this.flipCount = 0;
     this.grabTime = 0;
     this.grabbing = false;
+    this.perimeterStallTime = 0;
   }
 
   get forward(): THREE.Vector3 {
@@ -225,6 +227,7 @@ export class PlayerController {
   }
 
   update(dt: number, input: InputState, elapsed: number): void {
+    const frameStart = this.pos.clone();
     // Smooth steering so touch buttons don't feel binary. The base burger
     // responds crisply; weight makes the input lag (heavier = sluggish).
     const steerRate = Math.max(6, 14 - this.stackLayers * 0.6);
@@ -246,6 +249,7 @@ export class PlayerController {
       this.updateGrind(dt, elapsed);
     } else {
       this.updateSkating(dt, input, elapsed);
+      this.recoverPerimeterStall(dt, input, frameStart);
     }
 
     this.physics.movePlayerBody(this.pos);
@@ -778,6 +782,41 @@ export class PlayerController {
     // The physical quarter-circle profile begins three metres inside its wall.
     if (inset < -0.1 || inset > 3.15) return null;
     return inward;
+  }
+
+  /**
+   * Absolute perimeter failsafe. Collision branches handle normal wall rides,
+   * but a mesh seam or a pathological landing can still leave the controller
+   * reporting velocity while its actual position remains fixed. Detect the
+   * real symptom instead of guessing another collision state: if an active
+   * rider has made virtually no positional progress on the elevated wall for
+   * a quarter second, peel them inward and downward without a burger-down.
+   */
+  private recoverPerimeterStall(dt: number, input: InputState, frameStart: THREE.Vector3): void {
+    const inward = this.perimeterInward();
+    const movement = this.pos.distanceTo(frameStart);
+    const movementFloor = Math.max(0.003, dt * 0.25);
+    const active = this.mode === 'air' || Math.abs(this.speed) > 1 || this.horizontalSpeed > 1;
+    const braking = input.throttle < -0.1;
+    const elevatedOnWall = inward !== null && this.pos.y > 0.65;
+
+    if (elevatedOnWall && active && !braking && movement < movementFloor) {
+      this.perimeterStallTime += dt;
+    } else {
+      this.perimeterStallTime = 0;
+      return;
+    }
+
+    if (this.perimeterStallTime < 0.25 || !inward) return;
+    this.pos.addScaledVector(inward, 0.75);
+    this.vel.set(inward.x * 6, Math.min(this.vel.y, -2), inward.z * 6);
+    this.yaw = Math.atan2(inward.x, inward.z);
+    this.speed = 6;
+    this.mode = 'air';
+    this.vertAir = false;
+    this.groundNormal.set(0, 1, 0);
+    this.squashVel = -1;
+    this.perimeterStallTime = 0;
   }
 
   private clampToBounds(): void {
